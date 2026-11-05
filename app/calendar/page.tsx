@@ -2,12 +2,13 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import JobCalendar from "@/components/calendar/JobCalendar";
 import { getJobs } from "@/lib/jobs-repo";
-import { teamEvents } from "@/lib/mock-events";
+import { getEvents } from "@/lib/events-repo";
 
 async function CalendarContent() {
   await connection();
   const jobs = getJobs();
-  return <JobCalendar jobs={jobs} events={teamEvents} />;
+  const events = getEvents();
+  return <JobCalendar jobs={jobs} events={events} />;
 }
 
 export default function CalendarPage() {
@@ -16,7 +17,7 @@ export default function CalendarPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Kalender Kerja</h1>
         <p className="mt-1.5 text-sm text-slate-500">
-          Jadwal job dari Start Date sampai End Date, ditambah rapat dan event team.
+          Pantau tenggat job, rapat, dan event team. Klik tanggal untuk menambah event.
         </p>
       </div>
       <Suspense fallback={<p className="py-10 text-center text-slate-500">Memuat kalender...</p>}>

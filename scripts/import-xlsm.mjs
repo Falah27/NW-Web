@@ -17,10 +17,10 @@ if (!fs.existsSync(workbookPath)) {
 }
 
 const workbook = XLSX.readFile(workbookPath, {
-  cellDates: true,
+  cellDates: false,
   cellFormula: false,
   cellNF: false,
-  cellStyles: false,
+  cellStyles: true,
   bookVBA: true,
 });
 const sheet = workbook.Sheets[sheetName];
@@ -200,12 +200,17 @@ function numberBetweenZeroAndOne(value) {
 }
 
 function dateValue(value) {
-  if (!value) return null;
-  if (value instanceof Date && !Number.isNaN(value.valueOf())) {
-    return value.toISOString().slice(0, 10);
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    if (value < 1) return null;
+    return new Date(Date.UTC(1899, 11, 30) + Math.floor(value) * 86_400_000).toISOString().slice(0, 10);
   }
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.valueOf()) ? null : parsed.toISOString().slice(0, 10);
+  const str = String(value).trim();
+  const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const dmy = str.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, "0")}-${dmy[1].padStart(2, "0")}`;
+  return null;
 }
 
 function isHiddenRow(worksheet, rowNumber) {
