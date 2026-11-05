@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Import workbook XLSM
+
+Initialize the local database once, then import the `Job_Follow_Up` sheet:
+
+```powershell
+npm run db:init
+npm run import:xlsm -- "C:\path\New_NW_Job_Follow_Up_Sheet_FY26.xlsm"
+```
+
+The importer maps the job table by its headers, preserves dates and progress,
+extracts employee IDs from assignee values, and replaces local job data in one transaction.
+Pass a second argument to import a different sheet name.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
