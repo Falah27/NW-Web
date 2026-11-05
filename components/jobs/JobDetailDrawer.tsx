@@ -47,9 +47,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 export default function JobDetailDrawer({
   job,
   onClose,
+  onEdit,
+  onDelete,
+  deleting,
 }: {
   job: JobWithStatus | null;
   onClose: () => void;
+  onEdit: (job: JobWithStatus) => void;
+  onDelete: (job: JobWithStatus) => void;
+  deleting: boolean;
 }) {
   useEffect(() => {
     if (!job) return;
@@ -119,7 +125,24 @@ export default function JobDetailDrawer({
           <p className="whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm text-slate-700">
             {job.remarks || "Tidak ada remarks."}
           </p>
-        </section>
+          </section>
+                  <div className="mt-auto flex gap-2 border-t border-slate-100 pt-4">
+            <button
+              type="button"
+              onClick={() => onEdit(job)}
+              className="h-10 flex-1 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:opacity-90"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(job)}
+              disabled={deleting}
+              className="h-10 rounded-lg border border-red-300 bg-white px-4 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
+            >
+              {deleting ? "Menghapus..." : "Hapus"}
+            </button>
+          </div>
       </aside>
     </div>
   );

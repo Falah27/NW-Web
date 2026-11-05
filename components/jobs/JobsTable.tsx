@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { Job, JobStatus } from "@/lib/types";
 import { computeStatus } from "@/lib/status";
 import StatusBadge from "@/components/StatusBadge";
 import ProgressBar from "@/components/ProgressBar";
 import JobDetailDrawer from "@/components/jobs/JobDetailDrawer";
+import JobFormDrawer from "@/components/jobs/JobFormDrawer";
+import { deleteJobAction } from "@/app/jobs/actions";
 
 const ALL = "all";
 
@@ -59,7 +61,7 @@ function Select({
   );
 }
 
-export default function JobsTable({ jobs }: { jobs: Job[] }) {
+export default function JobsTable({ jobs, members }: { jobs: Job[]; members: string[] }) {
   const [q, setQ] = useState("");
   const [model, setModel] = useState(ALL);
   const [mod, setMod] = useState(ALL);
@@ -68,6 +70,10 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
   const [status, setStatus] = useState(ALL);
   const [showClosed, setShowClosed] = useState(false);
   const [selected, setSelected] = useState<(Job & { status: JobStatus }) | null>(null);
+  const [form, setForm] = useState<{ job: Job | null } | null>(null);
+  const [deleting, startDelete] = useTransition();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const withStatus = useMemo(
     () => jobs.map((j) => ({ ...j, status: computeStatus(j) })),
     [jobs]
@@ -76,6 +82,15 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
   const uniq = (key: "model" | "module" | "stage" | "assignee") =>
     Array.from(new Set(jobs.map((j) => j[key]))).sort();
 
+  function handleDelete(job: Job) {
+    if (!window.confirm(`Hapus job "${job.jobItem}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    setDeleteError(null);
+    startDelete(async () => {
+      const result = await deleteJobAction(job.id);
+      if (result.ok) setSelected(null);
+      else setDeleteError(result.error ?? "Terjadi kesalahan tak terduga.");
+    });
+  }
   const count = (s: JobStatus) => withStatus.filter((j) => j.status === s).length;
 
   const filtered = withStatus.filter((j) => {
@@ -150,7 +165,20 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
           />
           Tampilkan job selesai
         </label>
+        <button
+          type="button"
+          onClick={() => setForm({ job: null })}
+          className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+        >
+          + Tambah Job
+        </button>
       </div>
+
+      {deleteError && (
+        <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
+          Gagal menghapus job: {deleteError}
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="w-full min-w-[820px] border-collapse text-sm">
@@ -181,7 +209,26 @@ export default function JobsTable({ jobs }: { jobs: Job[] }) {
       <p className="text-sm text-slate-500">
         Menampilkan {filtered.length} job. Status dihitung otomatis dari progress dan tanggal.
       </p>
-      <JobDetailDrawer job={selected} onClose={() => setSelected(null)} />
+      <JobDetailDrawer
+        job={selected}
+        onClose={() => setSelected(null)}
+        onEdit={(j) => {
+          setSelected(null);
+          setForm({ job: j });
+        }}
+        onDelete={handleDelete}
+        deleting={deleting}
+      />
+      {form && (
+        <JobFormDrawer
+          job={form.job}
+          members={members}
+          models={uniq("model")}
+          modules={uniq("module").filter(Boolean)}
+          stages={uniq("stage").filter(Boolean)}
+          onClose={() => setForm(null)}
+        />
+      )}
     </div>
   );
 }

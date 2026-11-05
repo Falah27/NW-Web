@@ -1,12 +1,13 @@
 import { Suspense } from "react";
 import { connection } from "next/server";
 import JobsTable from "@/components/jobs/JobsTable";
-import { getJobs } from "@/lib/jobs-repo";
+import { getJobs, getMembers } from "@/lib/jobs-repo";
 
 async function JobsContent() {
   await connection();
   const jobs = getJobs();
-  return <JobsTable jobs={jobs} />;
+  const members = getMembers().map((m) => m.name);
+  return <JobsTable jobs={jobs} members={members} />;
 }
 
 export default function JobsPage() {
@@ -23,9 +24,6 @@ export default function JobsPage() {
         <div className="flex gap-2">
           <button className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">
             Sinkron sekarang
-          </button>
-          <button className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:opacity-90">
-            + Tambah job
           </button>
         </div>
       </div>

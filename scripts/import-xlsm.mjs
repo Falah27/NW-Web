@@ -136,7 +136,7 @@ const getOrCreate = (table, name, extraColumn = null, extraValue = null) => {
 
 db.exec("BEGIN IMMEDIATE");
 try {
-  db.exec("DELETE FROM jobs; DELETE FROM members; DELETE FROM model_groups; DELETE FROM modules; DELETE FROM stages;");
+  db.exec("DELETE FROM jobs; DELETE FROM model_groups; DELETE FROM modules; DELETE FROM stages;");
 
   const insertJob = db.prepare(`
     INSERT INTO jobs (
@@ -165,6 +165,11 @@ try {
       String(job.excelRow)
     );
   }
+  db.exec(`
+    DELETE FROM model_groups WHERE id NOT IN (SELECT model_group_id FROM jobs);
+    DELETE FROM modules WHERE id NOT IN (SELECT module_id FROM jobs WHERE module_id IS NOT NULL);
+    DELETE FROM stages WHERE id NOT IN (SELECT stage_id FROM jobs WHERE stage_id IS NOT NULL);
+  `);
   db.exec("COMMIT");
 } catch (error) {
   db.exec("ROLLBACK");

@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import type { Job, Member } from "./types";
+import { randomUUID } from "node:crypto";
 
 interface JobRow {
   id: string;
@@ -71,4 +72,108 @@ export function getMembers(): Member[] {
     skills: JSON.parse(r.skills) as string[],
     email: r.email ?? undefined,
   }));
+}
+
+export interface JobInput {
+  model: string;
+  module: string;
+  stage: string;
+  jobItem: string;
+  assignee: string;
+  detail: string;
+  remarks: string;
+  sotNo: string;
+  sotStatus: string;
+  progress: number; // 0 sampai 1
+  startDate: string | null;
+  endDate: string | null;
+}
+
+function tx<T>(fn: () => T): T {
+  const db = getDb();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const result = fn();
+    db.exec("COMMIT");
+    return result;
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+}
+
+function lookupId(table: "model_groups" | "modules" | "stages", name: string): number | null {
+  if (!name) return null;
+  const db = getDb();
+  db.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).run(name);
+  return (db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name) as { id: number }).id;
+}
+
+function memberIdByName(name: string): number {
+  const row = getDb().prepare("SELECT id FROM members WHERE name = ?").get(name) as
+    | { id: number }
+    | undefined;
+  if (!row) throw new Error(`PIC "${name}" tidak ditemukan di tabel member.`);
+  return row.id;
+}
+
+export function createJob(input: JobInput): string {
+  return tx(() => {
+    const id = `manual-${randomUUID()}`;
+    getDb()
+      .prepare(
+        `INSERT INTO jobs (id, sot_no, sot_status, model_group_id, module_id, stage_id,
+           job_item, assignee_id, detail_job, remarks, progress, start_date, end_date, is_archived)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+      )
+      .run(
+        id,
+        input.sotNo || null,
+        input.sotStatus || null,
+        lookupId("model_groups", input.model),
+        lookupId("modules", input.module),
+        lookupId("stages", input.stage),
+        input.jobItem,
+        memberIdByName(input.assignee),
+        input.detail || null,
+        input.remarks || null,
+        input.progress,
+        input.startDate,
+        input.endDate
+      );
+    return id;
+  });
+}
+
+export function updateJob(id: string, input: JobInput): void {
+  tx(() => {
+    const result = getDb()
+      .prepare(
+        `UPDATE jobs SET sot_no = ?, sot_status = ?, model_group_id = ?, module_id = ?,
+           stage_id = ?, job_item = ?, assignee_id = ?, detail_job = ?, remarks = ?,
+           progress = ?, start_date = ?, end_date = ?, updated_at = datetime('now')
+         WHERE id = ?`
+      )
+      .run(
+        input.sotNo || null,
+        input.sotStatus || null,
+        lookupId("model_groups", input.model),
+        lookupId("modules", input.module),
+        lookupId("stages", input.stage),
+        input.jobItem,
+        memberIdByName(input.assignee),
+        input.detail || null,
+        input.remarks || null,
+        input.progress,
+        input.startDate,
+        input.endDate,
+        id
+      );
+    if (Number(result.changes) === 0) throw new Error("Job tidak ditemukan.");
+  });
+}
+
+export function deleteJob(id: string): void {
+  const result = getDb().prepare("DELETE FROM jobs WHERE id = ?").run(id);
+  if (Number(result.changes) === 0) throw new Error("Job tidak ditemukan.");
 }
