@@ -10,6 +10,20 @@ body {
   background: #f7f8fa;
   color: #0f172a;
 }
+/* Tailwind v4 tidak lagi memberi kursor tangan pada tombol secara bawaan */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+  select,
+  label:has(input[type="checkbox"]) {
+    cursor: pointer;
+  }
+}
 
 /* FullCalendar */
 .fc {

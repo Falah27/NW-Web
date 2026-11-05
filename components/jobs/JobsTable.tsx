@@ -165,13 +165,6 @@ export default function JobsTable({ jobs, members }: { jobs: Job[]; members: str
           />
           Tampilkan job selesai
         </label>
-        <button
-          type="button"
-          onClick={() => setForm({ job: null })}
-          className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          + Tambah Job
-        </button>
       </div>
 
       {deleteError && (
