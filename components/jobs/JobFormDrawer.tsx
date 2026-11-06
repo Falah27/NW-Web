@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { startTransition, useActionState, useEffect } from "react";
 import type { Job } from "@/lib/types";
 import { saveJobAction, type FormState } from "@/app/jobs/actions";
+import { SOT_ERROR, SOT_HTML_PATTERN } from "@/lib/sot";
 
 const initialState: FormState = { ok: false };
 
@@ -37,6 +38,12 @@ export default function JobFormDrawer({
 }) {
   const [state, formAction, pending] = useActionState(saveJobAction, initialState);
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    startTransition(() => formAction(data));
+  }
+
   useEffect(() => {
     if (state.ok) onClose();
   }, [state.ok, onClose]);
@@ -70,7 +77,7 @@ export default function JobFormDrawer({
           </button>
         </div>
 
-        <form action={formAction} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {job && <input type="hidden" name="id" value={job.id} />}
 
           <Field label="Model *">
@@ -120,7 +127,16 @@ export default function JobFormDrawer({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="SOT No">
-              <input name="sotNo" defaultValue={job?.sotNo ?? ""} className={inputClass} />
+              <input
+                name="sotNo"
+                defaultValue={job?.sotNo ?? ""}
+                inputMode="numeric"
+                pattern={SOT_HTML_PATTERN}
+                maxLength={6}
+                placeholder="203038"
+                title={SOT_ERROR}
+                className={inputClass}
+              />
             </Field>
             <Field label="SOT Status">
               <input name="sotStatus" defaultValue={job?.sotStatus ?? ""} className={inputClass} />

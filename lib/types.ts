@@ -10,6 +10,7 @@ export interface Job {
   detail?: string;
   remarks?: string;
   sotNo?: string;
+  sotUrl?: string; // tautan ke halaman SOT, dibuat otomatis dari sotNo
   sotStatus?: string;
   progress: number; // 0 sampai 1
   startDate: string | null; // format YYYY-MM-DD

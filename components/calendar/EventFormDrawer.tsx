@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { startTransition, useActionState, useEffect } from "react";
 import { saveEventAction, type EventFormState } from "@/app/calendar/actions";
 
 const initialState: EventFormState = { ok: false };
@@ -8,6 +8,12 @@ const inputClass = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3
 
 export default function EventFormDrawer({ defaultDate, onClose }: { defaultDate?: string; onClose: () => void }) {
   const [state, formAction, pending] = useActionState(saveEventAction, initialState);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    startTransition(() => formAction(data));
+  }
 
   useEffect(() => {
     if (state.ok) onClose();
@@ -29,7 +35,7 @@ export default function EventFormDrawer({ defaultDate, onClose }: { defaultDate?
           <h2 className="text-xl font-bold">Tambah event</h2>
           <button type="button" onClick={onClose} aria-label="Tutup form" className="flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-slate-300 text-lg hover:bg-slate-50">×</button>
         </div>
-        <form action={formAction} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">Judul *<input name="title" required maxLength={120} className={inputClass} /></label>
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">Jenis<select name="kind" defaultValue="meeting" className={inputClass}><option value="meeting">Rapat</option><option value="event">Event</option><option value="holiday">Libur</option></select></label>
           <div className="grid grid-cols-2 gap-3">

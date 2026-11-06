@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import type { Job, Member } from "./types";
 import { randomUUID } from "node:crypto";
+import { isValidSotNo } from "./sot";
 
 interface JobRow {
   id: string;
@@ -25,6 +26,13 @@ interface MemberRow {
   role: string;
   skills: string;
   email: string | null;
+}
+
+// Alamat dasar SOT dibaca dari .env.local (SOT_BASE_URL), bukan ditulis di kode.
+function buildSotUrl(sotNo: string | null): string | undefined {
+  const base = process.env.SOT_BASE_URL?.trim().replace(/\/+$/, "");
+  if (!base || !sotNo || !isValidSotNo(sotNo)) return undefined;
+  return `${base}/${sotNo}`;
 }
 
 export function getJobs(): Job[] {
@@ -52,6 +60,7 @@ export function getJobs(): Job[] {
     detail: r.detail_job ?? undefined,
     remarks: r.remarks ?? undefined,
     sotNo: r.sot_no ?? undefined,
+    sotUrl: buildSotUrl(r.sot_no),
     sotStatus: r.sot_status ?? undefined,
     progress: r.progress,
     startDate: r.start_date,

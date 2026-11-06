@@ -309,7 +309,25 @@ export default function JobDetailDrawer({
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-4 rounded-2xl border border-slate-200 p-4">
                 <Field label="Modul" value={job.module} />
                 <Field label="Stage" value={job.stage} />
-                <Field label="SOT No" value={job.sotNo} />
+                {job.sotNo && (
+                  <div className="min-w-0">
+                    <dt className="text-xs text-slate-500">SOT No</dt>
+                    <dd className="mt-0.5 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                      {job.sotNo}
+                      {job.sotUrl && (
+                        <a
+                          href={job.sotUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Hanya bisa dibuka saat terhubung ke LAN/VPN kantor"
+                          className="inline-flex h-7 items-center rounded-md border border-brand px-2 text-xs font-semibold text-brand hover:bg-brand-soft"
+                        >
+                          Buka SOT ↗
+                        </a>
+                      )}
+                    </dd>
+                  </div>
+                )}
                 <Field label="SOT Status" value={job.sotStatus} />
               </dl>
             </section>

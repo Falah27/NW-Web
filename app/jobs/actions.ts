@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createJob, deleteJob, updateJob, type JobInput } from "@/lib/jobs-repo";
+import { SOT_ERROR, isValidSotNo } from "@/lib/sot";
 
 export type FormState = { ok: boolean; error?: string };
 
@@ -16,6 +17,9 @@ function parseForm(formData: FormData): JobInput | string {
   if (!model || !jobItem || !assignee) {
     return "Model, Job item, dan PIC wajib diisi.";
   }
+
+  const sotNo = s("sotNo");
+  if (sotNo && !isValidSotNo(sotNo)) return SOT_ERROR;
 
   const progressPct = Number(s("progress") || "0");
   if (!Number.isFinite(progressPct) || progressPct < 0 || progressPct > 100) {
@@ -39,7 +43,7 @@ function parseForm(formData: FormData): JobInput | string {
     assignee,
     detail: s("detail"),
     remarks: s("remarks"),
-    sotNo: s("sotNo"),
+    sotNo,
     sotStatus: s("sotStatus"),
     progress: progressPct / 100,
     startDate,
