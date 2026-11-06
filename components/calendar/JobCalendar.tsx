@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
-import listPlugin from "@fullcalendar/list";
+import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import idLocale from "@fullcalendar/core/locales/id";
 import type { EventClickArg, EventInput } from "@fullcalendar/core";
@@ -237,8 +237,8 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <FullCalendar
-          plugins={[dayGridPlugin, listPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+          initialView="timeGridWorkWeek"
           locale={idLocale}
           firstDay={1}
           height="auto"
@@ -249,14 +249,31 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
           dayMaxEvents={3}
           moreLinkClick="popover"
           moreLinkContent={(arg) => `+${arg.num} lagi`}
-          views={{ dayGridWeek: { dayMaxEvents: false } }}
-          buttonText={{ today: "Hari ini", month: "Bulan", week: "Minggu", list: "Agenda" }}
+          views={{
+            timeGridWorkWeek: {
+              type: "timeGrid",
+              duration: { days: 5 },
+              dateAlignment: "week",
+              hiddenDays: [0, 6],
+            },
+          }}
+          buttonText={{
+            today: "Hari ini",
+            day: "Day",
+            week: "Week",
+            month: "Month",
+            timeGridWorkWeek: "Work Week",
+          }}
           eventDidMount={(info) => { info.el.title = info.event.extendedProps.tooltip ?? info.event.title; }}
           eventContent={(arg) => {
             const props = arg.event.extendedProps;
             return <div className="flex min-w-0 items-center gap-1"><span className="truncate">{arg.event.title}</span>{props.type === "job" && props.who && <span className="ml-auto flex-none rounded bg-white/70 px-1 text-[10px] font-bold">{props.who}</span>}</div>;
           }}
-          headerToolbar={{ left: "prev,next today", center: "title", right: "dayGridMonth,dayGridWeek,listMonth" }}
+          headerToolbar={{
+            left: "prev,next today",
+            center: "title",
+            right: "timeGridDay,timeGridWorkWeek,timeGridWeek,dayGridMonth",
+          }}
         />
       </div>
 

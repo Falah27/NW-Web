@@ -8,10 +8,14 @@ const styles: Record<JobStatus, string> = {
   "-": "bg-white text-slate-500 border-slate-300",
 };
 
-export default function StatusBadge({ status }: { status: JobStatus }) {
+export default function StatusBadge({ status, compact = false }: { status: JobStatus; compact?: boolean }) {
   return (
     <span
-      className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${styles[status]}`}
+      className={
+        compact
+          ? `inline-flex items-center px-0 py-0 text-[11px] font-bold uppercase tracking-[0.08em] ${styles[status].replace(/bg-\S+/g, "bg-transparent").replace(/border-\S+/g, "border-0")}`
+          : `inline-block rounded-full border px-2.5 py-0.5 text-xs font-semibold ${styles[status]}`
+      }
     >
       {status}
     </span>
