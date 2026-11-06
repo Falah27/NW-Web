@@ -11,6 +11,7 @@ import type { EventKind, Job, JobStatus, TeamEvent } from "@/lib/types";
 import { computeStatus } from "@/lib/status";
 import EventFormDrawer from "@/components/calendar/EventFormDrawer";
 import CalendarDetailDrawer, { type Selected } from "@/components/calendar/CalendarDetailDrawer";
+import JobDetailPanel from "@/components/calendar/JobDetailPanel";
 import { deleteEventAction } from "@/app/calendar/actions";
 
 const ALL = "all";
@@ -282,7 +283,11 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
         Klik tanggal kosong untuk menambah event, klik job atau event untuk detail.
       </p>
 
-      <CalendarDetailDrawer selected={selected} onClose={() => setSelected(null)} onDeleteEvent={handleDeleteEvent} deleting={deleting} deleteError={deleteError} />
+      {selected?.type === "job" ? (
+        <JobDetailPanel job={{ ...selected.job, status: selected.status }} onClose={() => setSelected(null)} />
+      ) : (
+        <CalendarDetailDrawer selected={selected} onClose={() => setSelected(null)} onDeleteEvent={handleDeleteEvent} deleting={deleting} deleteError={deleteError} />
+      )}
       {eventForm && <EventFormDrawer defaultDate={eventForm.date} onClose={() => setEventForm(null)} />}
     </div>
   );

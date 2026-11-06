@@ -10,6 +10,16 @@ body {
   background: #f7f8fa;
   color: #0f172a;
 }
+
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.drawer-in { animation: drawer-in 0.22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-in { animation: none; }
+}
+
 /* Tailwind v4 tidak lagi memberi kursor tangan pada tombol secara bawaan */
 @layer base {
   button:not(:disabled),
