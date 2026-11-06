@@ -71,7 +71,7 @@ export default function JobsTable({ jobs, members }: { jobs: Job[]; members: str
   const [showClosed, setShowClosed] = useState(false);
   const [selected, setSelected] = useState<(Job & { status: JobStatus }) | null>(null);
   const [form, setForm] = useState<{ job: Job | null } | null>(null);
-  const [deleting, startDelete] = useTransition();
+  const [, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const withStatus = useMemo(
@@ -83,7 +83,6 @@ export default function JobsTable({ jobs, members }: { jobs: Job[]; members: str
     Array.from(new Set(jobs.map((j) => j[key]))).sort();
 
   function handleDelete(job: Job) {
-    if (!window.confirm(`Hapus job "${job.jobItem}"? Tindakan ini tidak bisa dibatalkan.`)) return;
     setDeleteError(null);
     startDelete(async () => {
       const result = await deleteJobAction(job.id);
@@ -210,7 +209,6 @@ export default function JobsTable({ jobs, members }: { jobs: Job[]; members: str
           setForm({ job: j });
         }}
         onDelete={handleDelete}
-        deleting={deleting}
       />
       {form && (
         <JobFormDrawer
