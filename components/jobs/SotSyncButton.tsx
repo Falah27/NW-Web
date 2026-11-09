@@ -26,7 +26,7 @@ export default function SotSyncButton() {
             <p className="mt-1 text-sm text-slate-500">Aplikasi akan membaca daftar project dan target model dari SOT melalui jaringan kantor.</p>
             {state.error && <p role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">{state.error}</p>}
             {state.ok && state.message && <p role="status" className="mt-4 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{state.message}</p>}
-            <p className="mt-4 text-xs text-slate-500">Jika SOT meminta login, isi <code>SOT_COOKIE</code> di environment server dan restart aplikasi.</p>
+            <p className="mt-4 text-xs text-slate-500">SOT akan dibuka di Microsoft Edge dan login Company Account dicoba otomatis. Pastikan LAN kantor aktif.</p>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setOpen(false)} disabled={pending} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold disabled:opacity-60">Tutup</button>
               {!state.ok && <button type="button" onClick={sync} disabled={pending} className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-white disabled:opacity-60">{pending ? "Menyinkronkan..." : "Mulai sinkron"}</button>}

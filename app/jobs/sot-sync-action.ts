@@ -12,7 +12,7 @@ export async function syncSotAction(): Promise<SotSyncState> {
     const unmatched = result.unmatchedMembers.length;
     return {
       ok: true,
-      message: `${result.projectCount} project dan ${result.memberCount} target model berhasil disinkronkan.${unmatched ? ` ${unmatched} model perlu mapping.` : ""}`,
+      message: `${result.projectCount} project dan ${result.memberCount} target model berhasil disinkronkan.${result.prefixMappedMembers ? ` ${result.prefixMappedMembers} model dipetakan lewat prefix.` : ""}${unmatched ? ` ${unmatched} model perlu mapping.` : ""}`,
     };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Gagal sinkronisasi SOT." };

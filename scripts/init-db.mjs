@@ -82,6 +82,24 @@ CREATE TABLE sot_sync_runs (
   member_count INTEGER NOT NULL DEFAULT 0,
   error_message TEXT
 );
+CREATE TABLE model_prefixes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  prefix TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE TABLE model_prefix_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  built_at TEXT NOT NULL,
+  added INTEGER NOT NULL DEFAULT 0,
+  skipped INTEGER NOT NULL DEFAULT 0,
+  total INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE sot_model_mappings (
+  source_name TEXT PRIMARY KEY COLLATE NOCASE,
+  model_group_id INTEGER NOT NULL REFERENCES model_groups(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 `);
 
 function idOf(table, name) {
