@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import JobsTable from "@/components/jobs/JobsTable";
 import AddJobButton from "@/components/jobs/AddJobButton";
 import SyncButton from "@/components/jobs/SyncButton";
+import SotSyncButton from "@/components/jobs/SotSyncButton";
 import { getJobs, getMembers } from "@/lib/jobs-repo";
 import { getLastSync } from "@/lib/xlsm-import";
 
@@ -57,6 +58,7 @@ export default function JobsPage() {
           </Suspense>
         </div>
         <div className="flex gap-2">
+          <SotSyncButton />
           <SyncButton />
           <Suspense
             fallback={

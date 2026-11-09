@@ -29,3 +29,10 @@ Berikan argumen kedua untuk mengimpor nama sheet yang berbeda.
 
 > Catatan: `npm run db:init` menghapus dan membuat ulang `data/dev.db`.
 > Jalankan hanya sekali di awal, bukan sebelum setiap import.
+
+## Sinkronisasi project SOT
+
+Tombol **Sinkron SOT** di halaman Monitoring Job membaca daftar project dan target model
+dari `SOT_PROJECTS_URL`. Aplikasi harus berjalan pada jaringan kantor. Jika SOT memakai
+login, isi `SOT_COOKIE` pada environment server dengan cookie sesi yang sudah login, lalu
+restart aplikasi. Cookie jangan di-commit ke repository.

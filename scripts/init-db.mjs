@@ -56,6 +56,32 @@ CREATE TABLE jobs (
 );
 CREATE INDEX jobs_filter_idx ON jobs (model_group_id, module_id, stage_id, assignee_id);
 CREATE INDEX jobs_dates_idx ON jobs (start_date, end_date);
+CREATE TABLE sot_projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  external_key TEXT NOT NULL UNIQUE,
+  fy TEXT NOT NULL,
+  project_name TEXT NOT NULL,
+  project_link TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen_at TEXT
+);
+CREATE TABLE sot_project_members (
+  project_id INTEGER NOT NULL REFERENCES sot_projects(id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  model_group_id INTEGER REFERENCES model_groups(id),
+  mapping_status TEXT NOT NULL CHECK (mapping_status IN ('matched', 'needs_mapping')),
+  PRIMARY KEY (project_id, source_name)
+);
+CREATE TABLE sot_sync_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at TEXT NOT NULL,
+  finished_at TEXT,
+  status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed')),
+  project_count INTEGER NOT NULL DEFAULT 0,
+  member_count INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT
+);
 `);
 
 function idOf(table, name) {
