@@ -32,6 +32,7 @@ export default function SotSyncButton() {
   const [selected, setSelected] = useState<string[]>([]);
   const [notice, setNotice] = useState<SotActionResult | null>(null);
   const [pending, startTransition] = useTransition();
+  const [prefixPending, setPrefixPending] = useState(false);
   const wasRunning = useRef(false);
 
   const refresh = useCallback(async () => {
@@ -60,10 +61,30 @@ export default function SotSyncButton() {
     });
   }
 
-  const busy = pending || Boolean(state?.running);
+  async function buildPrefix() {
+    setPrefixPending(true);
+    setNotice(null);
+    try {
+      setNotice(await runPrefixAction());
+      await refresh();
+    } catch (error) {
+      setNotice({
+        ok: false,
+        error: error instanceof Error ? error.message : "Gagal membangun prefix.",
+      });
+    } finally {
+      setPrefixPending(false);
+    }
+  }
+
+  const busy = pending || prefixPending || Boolean(state?.running);
   const fys = state?.fys ?? [];
   const run = state?.run ?? null;
+  const progress = state?.progress ?? { done: 0, total: 0, empty: 0, failed: 0 };
   const allSelected = fys.length > 0 && selected.length === fys.length;
+  const progressPercent = progress.total
+    ? Math.min(100, Math.round((progress.done / progress.total) * 100))
+    : 0;
 
   function toggle(fy: string) {
     setSelected((cur) => (cur.includes(fy) ? cur.filter((x) => x !== fy) : [...cur, fy]));
@@ -154,6 +175,11 @@ export default function SotSyncButton() {
                       Ambil target model ({selected.length} FY)
                     </button>
                   </div>
+                  <p className="text-xs text-slate-500">
+                    {selected.length === 0
+                      ? "Pilih minimal satu FY untuk mulai mengambil target model."
+                      : `${selected.length} FY dipilih. Total ${fys.filter((item) => selected.includes(item.fy)).reduce((sum, item) => sum + item.projects, 0)} project akan diproses.`}
+                  </p>
                 </div>
               )}
             </Card>
@@ -166,8 +192,14 @@ export default function SotSyncButton() {
                 <span className="text-sm text-slate-600">
                   {state ? `${state.prefix.total} prefix, ${state.totals.unmatched} model belum cocok` : "Memuat..."}
                 </span>
-                <button type="button" disabled={busy || !state || state.totals.projects === 0} onClick={() => act(async () => runPrefixAction())} className={primary}>
-                  Bangun prefix dan cocokkan
+                <button
+                  type="button"
+                  disabled={busy || !state || state.totals.projects === 0}
+                  onClick={() => startTransition(() => void buildPrefix())}
+                  aria-busy={prefixPending}
+                  className={primary}
+                >
+                  {prefixPending ? "Sedang membangun..." : "Bangun prefix dan cocokkan"}
                 </button>
               </div>
             </Card>
@@ -192,6 +224,27 @@ export default function SotSyncButton() {
                     </button>
                   )}
                 </div>
+                {run.kind === "members" && (
+                  <div className="mt-3">
+                    <div className="mb-1 flex justify-between text-xs font-semibold text-slate-600">
+                      <span>
+                        {state?.running ? "Sedang membaca target model..." : "Pembacaan target model"}
+                      </span>
+                      <span>
+                        {progress.done}/{progress.total || "?"} project ({progressPercent}%)
+                      </span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-200" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100}>
+                      <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${progressPercent}%` }} />
+                    </div>
+                    {!state?.running && progress.total > 0 && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        {progress.empty} project tidak memiliki field target model
+                        {progress.failed > 0 ? `, ${progress.failed} project gagal dibaca.` : "."}
+                      </p>
+                    )}
+                  </div>
+                )}
                 {run.status === "failed" && run.error && <p className="mt-2 text-sm text-red-800">{run.error}</p>}
                 {run.status === "success" && (
                   <p className="mt-2 text-sm text-slate-600">

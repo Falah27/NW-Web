@@ -25,6 +25,7 @@ export interface SotRunInfo {
 export interface SotState {
   running: boolean;
   run: SotRunInfo | null;
+  progress: { done: number; total: number; empty: number; failed: number };
   logs: { ts: string; level: string; message: string }[];
   fys: { fy: string; projects: number; withMembers: number }[];
   totals: { projects: number; memberNames: number; unmatched: number };
@@ -418,10 +419,29 @@ export function getSotState(): SotState {
     | undefined;
 
   const logs = last
-    ? (db
-        .prepare("SELECT ts, level, message FROM sot_sync_logs WHERE run_id = ? ORDER BY id DESC LIMIT 40")
-        .all(last.id) as unknown as SotState["logs"]).reverse()
+    ? (
+        db
+          .prepare("SELECT ts, level, message FROM sot_sync_logs WHERE run_id = ? ORDER BY id DESC LIMIT 40")
+          .all(last.id) as unknown as { ts: string; level: string; message: string }[]
+      )
+        .map((row) => ({ ts: row.ts, level: row.level, message: row.message }))
+        .reverse()
     : [];
+  const progress = { done: 0, total: 0, empty: 0, failed: 0 };
+  for (const log of logs) {
+    const reading = log.message.match(/Project (\d+) dari (\d+)/i);
+    if (reading) {
+      progress.done = Number(reading[1]);
+      progress.total = Number(reading[2]);
+    }
+    const result = log.message.match(/(\d+) project diperbarui, (\d+) tanpa field, (\d+) gagal/i);
+    if (result) {
+      progress.done = Number(result[1]) + Number(result[2]) + Number(result[3]);
+      progress.total = progress.done;
+      progress.empty = Number(result[2]);
+      progress.failed = Number(result[3]);
+    }
+  }
 
   const fys = (
     db
@@ -442,6 +462,7 @@ export function getSotState(): SotState {
           detail: last.detail, projectCount: last.project_count, memberCount: last.member_count, error: last.error_message,
         }
       : null,
+    progress,
     logs,
     fys,
     totals: {
