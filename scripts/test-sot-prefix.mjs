@@ -33,3 +33,22 @@ test("collectPrefixes: tanpa duplikat, huruf besar-kecil diabaikan", () => {
   assert.deepEqual(r.prefixes, ["Linus", "Nifty"]); // "linus" dianggap sama dengan "Linus"
   assert.equal(r.skipped, 1);
 });
+
+import { matchModelGroup } from "../lib/sot-prefix.ts";
+
+test("matchModelGroup: tiga tingkat dan batas keraguan", () => {
+  const groups = [
+    { id: 1, name: "Linus2-FAL" },
+    { id: 2, name: "Nifty" },
+    { id: 3, name: "Lucida2" },
+    { id: 4, name: "Carrey-FB EHC" },
+    { id: 5, name: "Carrey-FC" },
+  ];
+  assert.deepEqual(matchModelGroup("nifty", groups), { id: 2, method: "exact" });
+  assert.deepEqual(matchModelGroup("Linus2", groups), { id: 1, method: "base" });
+  assert.deepEqual(matchModelGroup("Linus3", groups), { id: 1, method: "prefix" }); // longgar, perlu dicek
+  assert.equal(matchModelGroup("Carrey", groups), null);   // 2 grup berbasis sama: ragu, jangan ditebak
+  assert.equal(matchModelGroup("Unknown", groups), null);
+  assert.equal(matchModelGroup("", groups), null);
+  assert.equal(matchModelGroup("X1", groups), null);       // prefix terlalu pendek
+});

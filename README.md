@@ -32,24 +32,28 @@ Berikan argumen kedua untuk mengimpor nama sheet yang berbeda.
 
 ## Sinkronisasi project SOT
 
-Tombol **Sinkron SOT** di halaman Monitoring Job membaca daftar project dan target model
-dari `SOT_PROJECTS_URL`. Aplikasi harus berjalan pada jaringan kantor. Saat halaman login
-muncul, Playwright mengeklik **Login with CompanyAccount** secara otomatis. Untuk melihat
-alur tersebut saat pengujian lokal, gunakan `SOT_BROWSER_HEADLESS=false`; jangan commit
-cookie atau kredensial ke repository.
+Tombol **Sinkron SOT** di halaman Monitoring Job membaca SOT lewat browser Microsoft Edge
+(Playwright). Aplikasi harus berjalan di komputer yang bisa membuka SOT (jaringan kantor) dan
+memiliki Microsoft Edge. Isi `SOT_PROJECTS_URL` di `.env.local` (lihat `.env.example`).
+
+Langkah di dialog:
+
+1. **Daftar project**: membaca semua FY dan project. Project baru ditambah, yang sudah ada diperbarui,
+   yang hilang dari SOT ditandai tidak aktif.
+2. **Target model**: pilih FY, lalu target model tiap project dibaca. Hanya project yang berhasil
+   dibaca yang ditimpa. Project tanpa field atau yang gagal dibaca tetap memakai data lama.
+3. **Cocokkan model**: membangun daftar prefix dan mencocokkan nama model SOT dengan grup model
+   di Monitoring Job (persis sama, sama sebelum tanda `-`, atau prefix sama).
+   Hanya dicocokkan jika hasilnya tepat satu grup. Pencocokan lewat prefix perlu dicek manual.
+
+Jendela Edge terbuka di komputer server. Login CompanyAccount disimpan di profil
+`data/edge_sot_profile`, jadi tidak ada password atau cookie yang disimpan di aplikasi.
+Jika login butuh input manual, biarkan `SOT_HEADLESS` kosong dan selesaikan login di jendela Edge.
+Proses berjalan di latar belakang dan bisa dibatalkan dari dialog.
 
 ## Prefix nama model SOT
 
 `lib/sot-prefix.ts` berisi aturan mengubah nama model SOT menjadi prefix (mis. `Linus2-FAL` menjadi `Linus`).
 `lib/sot-prefix-repo.ts` membangun tabel `model_prefixes` dari data project SOT di database (hanya menambah).
 Jalankan tes aturannya dengan `npm run test:sot`.
-Untuk database yang sudah ada, siapkan tabel mapping manual tanpa menghapus data dengan `npm run db:migrate:sot`.
-
-Sinkronisasi SOT memakai Playwright agar halaman yang membutuhkan JavaScript dan cookie sesi dapat dibaca.
-Setelah instalasi dependency, siapkan browser dengan `npm run playwright:install`.
-Secara default browser yang dipakai adalah Microsoft Edge (`SOT_BROWSER_CHANNEL=msedge`).
-Sesi login disimpan pada profile persistent `.playwright/edge-sot-profile` dan folder tersebut
-diabaikan Git karena dapat berisi cookie dan local storage autentikasi.
-Saat menyimpan target model, mapping exact ke `model_groups` diprioritaskan; jika tidak cocok,
-prefix dipakai sebagai fallback (mis. `Linus2-FAL` ke model group `Linus`). Jika tetap tidak cocok,
-statusnya tetap `needs_mapping`.
+Tabel mapping dan prefix dibuat otomatis saat aplikasi mengakses database.

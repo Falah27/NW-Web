@@ -1,144 +1,47 @@
+import { spawn, type ChildProcess } from "node:child_process";
 import path from "node:path";
+import readline from "node:readline";
 import { getDb } from "./db";
-import { chromium, type BrowserContext, type Page } from "playwright";
-import { buildModelPrefixes } from "./sot-prefix-repo";
-import { cleanPrefixes } from "./sot-prefix";
+import { buildModelPrefixes, getPrefixSummary, type PrefixBuildResult } from "./sot-prefix-repo";
+import { matchModelGroup, type NamedGroup } from "./sot-prefix";
 
-export interface SotProject {
+// Pembacaan SOT dilakukan oleh scripts/sot-sync.mjs (browser Edge) sebagai proses anak.
+// File ini: menjalankan proses itu, menyimpan hasilnya ke database, dan melaporkan statusnya ke UI.
+
+export type SotRunKind = "projects" | "members";
+
+export interface SotRunInfo {
   id: number;
-  externalKey: string;
-  fy: string;
-  projectName: string;
-  projectLink: string;
-  members: string[];
-  isActive: boolean;
-  updatedAt: string;
-}
-
-export interface SotSyncResult {
+  kind: SotRunKind;
+  status: "running" | "success" | "failed";
+  startedAt: string;
+  finishedAt: string | null;
+  detail: string | null;
   projectCount: number;
   memberCount: number;
-  unmatchedMembers: string[];
-  prefixMappedMembers: number;
+  error: string | null;
 }
 
-interface ParsedProject {
-  externalKey: string;
-  fy: string;
-  projectName: string;
-  projectLink: string;
-  members: string[];
+export interface SotState {
+  running: boolean;
+  run: SotRunInfo | null;
+  logs: { ts: string; level: string; message: string }[];
+  fys: { fy: string; projects: number; withMembers: number }[];
+  totals: { projects: number; memberNames: number; unmatched: number };
+  prefix: { total: number; builtAt: string | null };
 }
 
 const PROJECTS_URL =
-  process.env.SOT_PROJECTS_URL ??
-  "https://jpeaws482.apo.epson.net/redmine2/sot/projects";
-const TARGET_MODEL_LABEL = "対象機種";
-const SOT_HOST = new URL(PROJECTS_URL).hostname.toLowerCase();
-const NAVIGATION_TIMEOUT_MS = 30_000;
-const LOGIN_TIMEOUT_MS = 120_000;
-const POLL_INTERVAL_MS = 500;
+  process.env.SOT_PROJECTS_URL ?? "https://jpeaws482.apo.epson.net/redmine2/sot/projects";
+const SCRIPT_PATH = path.join(/* turbopackIgnore: true */ process.cwd(), "scripts", "sot-sync.mjs");
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// Satu proses sekaligus. Disimpan di globalThis supaya tidak hilang saat modul dimuat ulang (mode dev).
+const g = globalThis as unknown as { __sotRun?: { runId: number; child: ChildProcess; cancelled: boolean } };
 
-function getHostname(value: string): string {
-  try {
-    return new URL(value).hostname.toLowerCase();
-  } catch {
-    return "";
-  }
-}
-
-function sanitizeUrl(value: string): string {
-  try {
-    const parsed = new URL(value);
-    return `${parsed.origin}${parsed.pathname}`;
-  } catch {
-    return "invalid-url";
-  }
-}
-
-function normalizePathname(value: string): string {
-  try {
-    const pathname = new URL(value).pathname.replace(/\/+$/, "");
-    return pathname || "/";
-  } catch {
-    return "";
-  }
-}
-
-function isSameTargetPage(currentUrl: string, targetUrl: string): boolean {
-  return (
-    getHostname(currentUrl) === getHostname(targetUrl) &&
-    normalizePathname(currentUrl) === normalizePathname(targetUrl)
-  );
-}
-
-function isSotHost(value: string): boolean {
-  return getHostname(value) === SOT_HOST;
-}
-
-function isMicrosoftLoginHost(value: string): boolean {
-  const host = getHostname(value);
-  return host === "login.microsoftonline.com" || host === "login.live.com" || host.endsWith(".msftauth.net");
-}
-
-function logSot(message: string, details?: Record<string, unknown>) {
-  const suffix = details ? ` ${JSON.stringify(details)}` : "";
-  console.info(`[SOT] ${message}${suffix}`);
-}
-
-function logSotError(message: string, error: unknown, details?: Record<string, unknown>) {
-  const errorMessage = error instanceof Error ? error.message : String(error);
-  console.error(`[SOT] ${message}`, { ...details, error: errorMessage });
-}
-
-async function hasProjectsHeader(page: Page): Promise<boolean> {
-  if (page.isClosed()) return false;
-  try {
-    return await page.locator("h2").evaluateAll((headers) =>
-      headers.some((header) => (header.textContent ?? "").replace(/\s+/g, " ").trim() === "Projects")
-    );
-  } catch {
-    return false;
-  }
-}
-
-async function pageHasBody(page: Page): Promise<boolean> {
-  if (page.isClosed()) return false;
-  try {
-    const body = page.locator("body");
-    if ((await body.count()) === 0) return false;
-    const text = await body.innerText({ timeout: 3_000 }).catch(() => "");
-    return text.trim().length > 0;
-  } catch {
-    return false;
-  }
-}
-
-async function findCompanyAccountLink(page: Page) {
-  if (page.isClosed()) return null;
-  const link = page.getByRole("link", { name: /login\s+with\s+companyaccount/i }).first();
-  try {
-    return (await link.count()) > 0 ? link : null;
-  } catch {
-    return null;
-  }
-}
-
-function attachPageLogging(page: Page): void {
-  page.on("requestfailed", (request) => {
-    const errorText = request.failure()?.errorText ?? "Unknown request failure";
-    if (errorText === "net::ERR_ABORTED") return;
-    logSotError("Request SOT gagal", new Error(errorText), {
-      method: request.method(),
-      resource: request.resourceType(),
-      host: getHostname(request.url()),
-      url: sanitizeUrl(request.url()),
-    });
-  });
+function addColumnIfMissing(table: string, column: string, ddl: string) {
+  const db = getDb();
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
+  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
 }
 
 function ensureTables() {
@@ -169,362 +72,391 @@ function ensureTables() {
       member_count INTEGER NOT NULL DEFAULT 0,
       error_message TEXT
     );
-    CREATE TABLE IF NOT EXISTS sot_model_mappings (
-      source_name TEXT PRIMARY KEY COLLATE NOCASE,
-      model_group_id INTEGER NOT NULL REFERENCES model_groups(id),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    CREATE TABLE IF NOT EXISTS sot_sync_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      run_id INTEGER NOT NULL REFERENCES sot_sync_runs(id) ON DELETE CASCADE,
+      ts TEXT NOT NULL,
+      level TEXT NOT NULL,
+      message TEXT NOT NULL
     );
   `);
+  addColumnIfMissing("sot_sync_runs", "kind", "TEXT NOT NULL DEFAULT 'projects'");
+  addColumnIfMissing("sot_sync_runs", "detail", "TEXT");
+  // exact / base / prefix: cara model SOT dicocokkan dengan grup model (kosong = belum cocok)
+  addColumnIfMissing("sot_project_members", "mapping_method", "TEXT");
 }
 
-function parseMembers(text: string): string[] {
-  const labelIndex = text.indexOf(TARGET_MODEL_LABEL);
-  if (labelIndex < 0) return [];
-
-  const value = text.slice(labelIndex + TARGET_MODEL_LABEL.length, labelIndex + TARGET_MODEL_LABEL.length + 240);
-  const cleaned = value.replace(/^[\s:：-]+/, "").split(/\s{2,}|(?:\b(?:担当|責任|Status|更新)\b)/i)[0].trim();
-  return cleaned
-    .split(/[、,，;；|/]/)
-    .map((member) => member.trim())
-    .filter(Boolean);
+function addLog(runId: number, level: string, message: string) {
+  getDb()
+    .prepare("INSERT INTO sot_sync_logs (run_id, ts, level, message) VALUES (?, ?, ?, ?)")
+    .run(runId, new Date().toISOString(), level, message.slice(0, 2000));
 }
 
-async function openBrowserPage(context: BrowserContext, url: string, expectProjectsHeader = false): Promise<Page> {
-  const originalPage = await context.newPage();
-  attachPageLogging(originalPage);
-  let activePage = originalPage;
-  logSot("Membuka halaman", { url: sanitizeUrl(url) });
-
-  try {
-    await originalPage.goto(url, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS });
-  } catch (error) {
-    logSotError("Navigasi awal belum selesai", error, {
-      requestedUrl: sanitizeUrl(url),
-      currentUrl: sanitizeUrl(originalPage.url()),
-    });
-  }
-
-  const initialReady =
-    isSameTargetPage(originalPage.url(), url) &&
-    isSotHost(originalPage.url()) &&
-    (expectProjectsHeader ? await hasProjectsHeader(originalPage) : await pageHasBody(originalPage));
-  if (initialReady) {
-    logSot("Halaman SOT siap", { url: sanitizeUrl(originalPage.url()) });
-    return originalPage;
-  }
-
-  const companyAccountLink = await findCompanyAccountLink(originalPage);
-  if (companyAccountLink) {
-    logSot("Login Company Account terdeteksi, mengeklik", { url: sanitizeUrl(originalPage.url()) });
-    const popupPromise = context.waitForEvent("page", { timeout: 5_000 }).catch(() => undefined);
-    try {
-      await companyAccountLink.click({ noWaitAfter: true });
-    } catch (error) {
-      logSotError("Gagal mengeklik Login with CompanyAccount", error, {
-        url: sanitizeUrl(originalPage.url()),
-      });
-      await originalPage.close().catch(() => undefined);
-      throw new Error("Gagal mengeklik Login with CompanyAccount.");
-    }
-
-    const popup = await popupPromise;
-    if (popup && popup !== originalPage) {
-      activePage = popup;
-      attachPageLogging(activePage);
-      logSot("SSO dibuka pada popup", { url: sanitizeUrl(activePage.url()) });
-      await activePage.waitForLoadState("domcontentloaded", { timeout: NAVIGATION_TIMEOUT_MS }).catch(() => undefined);
-    } else {
-      logSot("Menunggu redirect Microsoft SSO", { url: sanitizeUrl(activePage.url()) });
-    }
-  }
-
-  const startedAt = Date.now();
-  let targetNavigationAttempted = false;
-  let lastLoggedHost = "";
-  while (Date.now() - startedAt < LOGIN_TIMEOUT_MS) {
-    if (activePage.isClosed()) {
-      if (activePage !== originalPage && !originalPage.isClosed()) activePage = originalPage;
-      else throw new Error("Tab browser tertutup ketika menunggu login SSO.");
-    }
-
-    const currentUrl = activePage.url();
-    const currentHost = getHostname(currentUrl);
-    if (currentHost !== lastLoggedHost) {
-      logSot("Status navigasi SSO", { host: currentHost || "unknown", url: sanitizeUrl(currentUrl) });
-      lastLoggedHost = currentHost;
-    }
-
-    const targetReady =
-      isSotHost(currentUrl) &&
-      isSameTargetPage(currentUrl, url) &&
-      (expectProjectsHeader ? await hasProjectsHeader(activePage) : await pageHasBody(activePage));
-    if (targetReady) {
-      const title = await activePage.title().catch(() => "");
-      logSot("Halaman SOT siap", { url: sanitizeUrl(currentUrl), title });
-      if (activePage !== originalPage && !originalPage.isClosed()) await originalPage.close().catch(() => undefined);
-      return activePage;
-    }
-
-    if (isSotHost(currentUrl) && !isSameTargetPage(currentUrl, url) && !targetNavigationAttempted) {
-      targetNavigationAttempted = true;
-      logSot("Kembali ke domain SOT, membuka ulang halaman target", {
-        target: sanitizeUrl(url),
-        current: sanitizeUrl(currentUrl),
-      });
-      await activePage.goto(url, { waitUntil: "domcontentloaded", timeout: NAVIGATION_TIMEOUT_MS }).catch((error) => {
-        logSotError("Gagal membuka ulang halaman target", error, {
-          target: sanitizeUrl(url),
-          current: sanitizeUrl(activePage.url()),
-        });
-      });
-    }
-
-    if (isSotHost(currentUrl)) {
-      const loginLink = await findCompanyAccountLink(activePage);
-      if (loginLink) {
-        logSot("Halaman login SOT muncul kembali, mengeklik Company Account");
-        await loginLink.click({ noWaitAfter: true }).catch((error) => {
-          logSotError("Klik ulang Company Account gagal", error);
-        });
-      }
-    }
-    await delay(POLL_INTERVAL_MS);
-  }
-
-  const finalUrl = activePage.url();
-  const finalTitle = await activePage.title().catch(() => "");
-  const message = isMicrosoftLoginHost(finalUrl)
-    ? "Microsoft Sign In belum selesai. Selesaikan login atau MFA pada Edge, lalu jalankan sinkronisasi kembali."
-    : isSotHost(finalUrl)
-      ? expectProjectsHeader
-        ? "Domain SOT berhasil dibuka, tetapi header Projects tidak ditemukan."
-        : "Domain SOT berhasil dibuka, tetapi halaman project belum siap."
-      : "Login SOT belum kembali ke domain SOT. Periksa koneksi LAN, VPN, proxy perusahaan, atau Microsoft SSO.";
-  logSotError("Login Company Account belum selesai", new Error(message), {
-    host: getHostname(finalUrl),
-    url: sanitizeUrl(finalUrl),
-    title: finalTitle,
-    timeoutSeconds: LOGIN_TIMEOUT_MS / 1000,
-  });
-  await activePage.close().catch(() => undefined);
-  if (activePage !== originalPage && !originalPage.isClosed()) await originalPage.close().catch(() => undefined);
-  throw new Error(message);
+// Run yang berstatus 'running' padahal tidak ada proses yang dipantau = aplikasi sempat berhenti.
+function reconcileStaleRun() {
+  if (g.__sotRun) return;
+  getDb()
+    .prepare(
+      "UPDATE sot_sync_runs SET status = 'failed', finished_at = ?, error_message = ? WHERE status = 'running'"
+    )
+    .run(new Date().toISOString(), "Proses terhenti sebelum selesai (aplikasi dimatikan atau di-restart).");
 }
 
-async function loadProjects(context: BrowserContext): Promise<ParsedProject[]> {
-  const page = await openBrowserPage(context, PROJECTS_URL, true);
-  try {
-    logSot("Membaca daftar project", { url: sanitizeUrl(page.url()) });
-    const projects = await page.evaluate(() => {
-      const results: ParsedProject[] = [];
-      const projectsHeader = Array.from(document.querySelectorAll("h2")).find(
-        (header) => (header.textContent ?? "").replace(/\s+/g, " ").trim() === "Projects"
-      );
-      if (!projectsHeader) return results;
-
-      const fyItems: HTMLLIElement[] = [];
-      let sibling = projectsHeader.nextElementSibling;
-      while (sibling && sibling.tagName.toUpperCase() !== "H2") {
-        if (sibling.matches("li.child")) fyItems.push(sibling as HTMLLIElement);
-        fyItems.push(...Array.from(sibling.querySelectorAll<HTMLLIElement>("li.child")));
-        sibling = sibling.nextElementSibling;
-      }
-      if (fyItems.length === 0) {
-        fyItems.push(...Array.from(projectsHeader.parentElement?.querySelectorAll<HTMLLIElement>("li.child") ?? []));
-      }
-
-      const seen = new Set<string>();
-      for (const fyItem of fyItems) {
-        const fyLink = fyItem.querySelector<HTMLAnchorElement>("a.project.child.parent");
-        if (!fyLink) continue;
-        const fy = (fyLink.textContent ?? "").replace(/\s+/g, " ").trim();
-        if (!/^FY/i.test(fy)) continue;
-        for (const projectLink of fyItem.querySelectorAll<HTMLAnchorElement>("a.project.leaf")) {
-          const projectName = (projectLink.textContent ?? "").replace(/\s+/g, " ").trim();
-          if (!projectName || !projectLink.href) continue;
-          const parsedUrl = new URL(projectLink.href);
-          const externalKey = parsedUrl.pathname.replace(/\/+$/, "");
-          if (!externalKey || seen.has(externalKey)) continue;
-          seen.add(externalKey);
-          results.push({ externalKey, fy: fy.toUpperCase(), projectName, projectLink: projectLink.href, members: [] });
-        }
-      }
-      return results;
-    });
-    if (projects.length === 0) {
-      throw new Error("Tidak menemukan link project SOT. Header Projects ditemukan, tetapi struktur a.project.leaf tidak tersedia.");
-    }
-    logSot("Daftar project berhasil dibaca", { count: projects.length });
-    return projects;
-  } catch (error) {
-    logSotError("Gagal membaca daftar project", error, { url: sanitizeUrl(page.url()) });
-    throw error;
-  } finally {
-    await page.close().catch(() => undefined);
-  }
+function finishRun(runId: number, status: "success" | "failed", projectCount: number, memberCount: number, error?: string) {
+  getDb()
+    .prepare(
+      "UPDATE sot_sync_runs SET finished_at = ?, status = ?, project_count = ?, member_count = ?, error_message = ? WHERE id = ?"
+    )
+    .run(new Date().toISOString(), status, projectCount, memberCount, error ?? null, runId);
 }
 
-async function readProjectMembers(page: Page): Promise<string[]> {
-  const rawValue = await page.locator("li").evaluateAll((items, targetLabel) => {
-    for (const item of items) {
-      if (item.querySelector("li")) continue;
-      const text = (item.textContent ?? "").replace(/\s+/g, " ").trim();
-      if (!text.includes(String(targetLabel))) continue;
-      const separatorIndex = text.search(/[:：]/);
-      if (separatorIndex < 0) continue;
-      return text.slice(separatorIndex + 1).trim();
-    }
-    return "";
-  }, TARGET_MODEL_LABEL);
-  if (!rawValue) return [];
-  return rawValue.split(/[、,，;；|/]/).map((member) => member.trim()).filter(Boolean);
+// ---------------------------------------------------------------------------
+// Menyimpan hasil dari browser
+// ---------------------------------------------------------------------------
+
+interface FyResult {
+  label: string;
+  projects: { name: string; link: string }[];
+}
+interface MemberItem {
+  key: string;
+  status: "ok" | "none" | "login" | "http" | "error";
+  value?: string;
+  message?: string;
 }
 
-export async function syncSotProjects(): Promise<SotSyncResult> {
-  ensureTables();
+// Daftar project: baru ditambah, yang sudah ada diperbarui (nama/FY/link). Project yang tidak lagi
+// muncul di SOT ditandai tidak aktif. Target model tidak disentuh.
+function applyProjectList(runId: number, fys: FyResult[]): number {
   const db = getDb();
   const startedAt = new Date().toISOString();
-  const run = db
-    .prepare("INSERT INTO sot_sync_runs (started_at, status) VALUES (?, 'running')")
-    .run(startedAt);
-  const runId = Number(run.lastInsertRowid);
-  let context: BrowserContext | undefined;
+  let total = 0;
+  let added = 0;
 
+  db.exec("BEGIN IMMEDIATE");
   try {
-    const headless = process.env.SOT_BROWSER_HEADLESS !== "false";
-    const profileDirectory =
-      process.env.SOT_BROWSER_PROFILE_DIR?.trim() || path.join(process.cwd(), ".playwright", "edge-sot-profile");
-    logSot("Memulai sinkronisasi", {
-      browser: process.env.SOT_BROWSER_CHANNEL ?? "msedge",
-      headless,
-      profileDirectory,
-    });
-    context = await chromium.launchPersistentContext(profileDirectory, {
-      channel: process.env.SOT_BROWSER_CHANNEL ?? "msedge",
-      headless,
-      viewport: null,
-      timeout: LOGIN_TIMEOUT_MS,
-      args: ["--no-first-run", "--no-default-browser-check", "--disable-extensions"],
-    });
-    if (process.env.SOT_COOKIE?.trim()) {
-      await context.setExtraHTTPHeaders({ Cookie: process.env.SOT_COOKIE.trim() });
-      logSot("SOT_COOKIE diterapkan dari environment");
-    }
-    const projects = await loadProjects(context);
-    for (let projectIndex = 0; projectIndex < projects.length; projectIndex += 1) {
-      const project = projects[projectIndex];
-      logSot("Membaca target model project", {
-        index: projectIndex + 1,
-        total: projects.length,
-        project: project.projectName,
-      });
-      const page = await openBrowserPage(context, project.projectLink, false);
-      try {
-        project.members = await readProjectMembers(page);
-        if (project.members.length === 0) {
-          project.members = parseMembers(await page.locator("body").innerText());
-        }
-        logSot("Target model project berhasil dibaca", {
-          project: project.projectName,
-          count: project.members.length,
-        });
-      } catch (error) {
-        logSotError("Gagal membaca target model project", error, {
-          project: project.projectName,
-          url: project.projectLink,
-        });
-        throw error;
-      } finally {
-        await page.close();
+    const exists = db.prepare("SELECT 1 FROM sot_projects WHERE external_key = ?");
+    const upsert = db.prepare(`
+      INSERT INTO sot_projects (external_key, fy, project_name, project_link, is_active, updated_at, last_seen_at)
+      VALUES (?, ?, ?, ?, 1, ?, ?)
+      ON CONFLICT(external_key) DO UPDATE SET
+        fy = excluded.fy,
+        project_name = excluded.project_name,
+        project_link = excluded.project_link,
+        is_active = 1,
+        updated_at = excluded.updated_at,
+        last_seen_at = excluded.last_seen_at
+    `);
+    for (const fy of fys) {
+      for (const project of fy.projects) {
+        const key = new URL(project.link).pathname.replace(/\/+$/, "");
+        if (!exists.get(key)) added += 1;
+        upsert.run(key, fy.label, project.name, project.link, startedAt, startedAt);
+        total += 1;
       }
     }
-
-    const unmatched = new Set<string>();
-    let prefixMappedMembers = 0;
-    db.exec("BEGIN IMMEDIATE");
-    try {
-      const upsertProject = db.prepare(`
-        INSERT INTO sot_projects (external_key, fy, project_name, project_link, is_active, updated_at, last_seen_at)
-        VALUES (?, ?, ?, ?, 1, ?, ?)
-        ON CONFLICT(external_key) DO UPDATE SET
-          fy = excluded.fy,
-          project_name = excluded.project_name,
-          project_link = excluded.project_link,
-          is_active = 1,
-          updated_at = excluded.updated_at,
-          last_seen_at = excluded.last_seen_at
-      `);
-      const selectProject = db.prepare("SELECT id FROM sot_projects WHERE external_key = ?");
-      const selectModel = db.prepare("SELECT id FROM model_groups WHERE lower(name) = lower(?)");
-      const selectMapping = db.prepare(`
-        SELECT model_group_id AS id
-        FROM sot_model_mappings
-        WHERE source_name = ?
-      `);
-      const clearMembers = db.prepare("DELETE FROM sot_project_members WHERE project_id = ?");
-      const insertMember = db.prepare(`
-        INSERT INTO sot_project_members (project_id, source_name, model_group_id, mapping_status)
-        VALUES (?, ?, ?, ?)
-      `);
-      for (const project of projects) {
-        upsertProject.run(project.externalKey, project.fy, project.projectName, project.projectLink, startedAt, startedAt);
-        const row = selectProject.get(project.externalKey) as { id: number };
-        clearMembers.run(row.id);
-        for (const sourceName of project.members) {
-          let model = selectModel.get(sourceName) as { id: number } | undefined;
-          if (!model) {
-            model = selectMapping.get(sourceName) as { id: number } | undefined;
-          }
-          if (!model) {
-            const prefix = cleanPrefixes(sourceName)[0];
-            if (prefix) {
-              model = selectModel.get(prefix) as { id: number } | undefined;
-              if (model) prefixMappedMembers += 1;
-            }
-          }
-          if (!model) unmatched.add(sourceName);
-          insertMember.run(row.id, sourceName, model?.id ?? null, model ? "matched" : "needs_mapping");
-        }
-      }
-      db.prepare("UPDATE sot_projects SET is_active = 0 WHERE last_seen_at < ?").run(startedAt);
-      db.prepare(`
-        UPDATE sot_sync_runs
-        SET finished_at = ?, status = 'success', project_count = ?, member_count = ?
-        WHERE id = ?
-      `).run(new Date().toISOString(), projects.length, projects.reduce((total, project) => total + project.members.length, 0), runId);
-      db.exec("COMMIT");
-    } catch (error) {
-      db.exec("ROLLBACK");
-      throw error;
-    }
-    buildModelPrefixes();
-    logSot("Sinkronisasi selesai", {
-      projects: projects.length,
-      members: projects.reduce((total, project) => total + project.members.length, 0),
-      prefixMappedMembers,
-      unmatchedMembers: unmatched.size,
-    });
-
-    return {
-      projectCount: projects.length,
-      memberCount: projects.reduce((total, project) => total + project.members.length, 0),
-      unmatchedMembers: [...unmatched].sort(),
-      prefixMappedMembers,
-    };
+    const gone = db.prepare("UPDATE sot_projects SET is_active = 0 WHERE is_active = 1 AND last_seen_at < ?").run(startedAt);
+    db.exec("COMMIT");
+    addLog(runId, "info", `${fys.length} FY, ${total} project (${added} baru, ${Number(gone.changes)} tidak aktif lagi)`);
   } catch (error) {
-    logSotError("Sinkronisasi gagal", error, { runId });
-    db.prepare("UPDATE sot_sync_runs SET finished_at = ?, status = 'failed', error_message = ? WHERE id = ?")
-      .run(new Date().toISOString(), error instanceof Error ? error.message : "Gagal sinkronisasi SOT.", runId);
+    db.exec("ROLLBACK");
     throw error;
-  } finally {
-    if (context) {
-      logSot("Menutup browser SOT");
-      await context.close().catch((error) => {
-        logSotError("Gagal menutup browser SOT", error);
-      });
-    }
   }
+  return total;
+}
+
+function splitMembers(value: string): string[] {
+  const names = value
+    .split(/[、,，;；|/]/)
+    .map((name) => name.trim())
+    .filter(Boolean);
+  return [...new Map(names.map((name) => [name.toLowerCase(), name])).values()];
+}
+
+function loadGroups(): NamedGroup[] {
+  return getDb().prepare("SELECT id, name FROM model_groups").all() as unknown as NamedGroup[];
+}
+
+// Target model: hanya project yang berhasil dibaca yang ditimpa. "Tidak ada field" atau gagal
+// membiarkan data lama apa adanya (sama seperti macro VBA).
+function applyMembers(runId: number, items: MemberItem[]): { updated: number; members: number } {
+  const db = getDb();
+  const groups = loadGroups();
+  const groupName = new Map(groups.map((g2) => [g2.id, g2.name]));
+  const notes: { level: string; message: string }[] = [];
+  let updated = 0;
+  let members = 0;
+  let none = 0;
+  let failed = 0;
+  let fuzzy = 0;
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const select = db.prepare("SELECT id, project_name FROM sot_projects WHERE external_key = ?");
+    const clear = db.prepare("DELETE FROM sot_project_members WHERE project_id = ?");
+    const insert = db.prepare(`
+      INSERT INTO sot_project_members (project_id, source_name, model_group_id, mapping_status, mapping_method)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    for (const item of items) {
+      const project = select.get(item.key) as { id: number; project_name: string } | undefined;
+      if (!project) continue;
+      if (item.status === "none") {
+        none += 1;
+        notes.push({ level: "info", message: `${project.project_name}: tidak ada field target model, data lama dipertahankan` });
+        continue;
+      }
+      if (item.status !== "ok" || !item.value) {
+        failed += 1;
+        notes.push({ level: "warn", message: `${project.project_name}: gagal dibaca (${item.message ?? item.status})` });
+        continue;
+      }
+      clear.run(project.id);
+      for (const name of splitMembers(item.value)) {
+        const match = matchModelGroup(name, groups);
+        insert.run(project.id, name, match?.id ?? null, match ? "matched" : "needs_mapping", match?.method ?? null);
+        members += 1;
+        if (match && match.method !== "exact") {
+          fuzzy += 1;
+          if (fuzzy <= 15) {
+            notes.push({ level: "info", message: `Dicocokkan lewat ${match.method}: "${name}" -> "${groupName.get(match.id)}"` });
+          }
+        }
+      }
+      updated += 1;
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+
+  for (const note of notes) addLog(runId, note.level, note.message);
+  addLog(runId, "info", `${updated} project diperbarui, ${none} tanpa field, ${failed} gagal, ${members} target model`);
+  return { updated, members };
+}
+
+/** Mencoba lagi mencocokkan model yang masih needs_mapping (mis. setelah grup model baru diimpor). */
+export function remapNeedsMapping(): { matched: number; remaining: number } {
+  ensureTables();
+  const db = getDb();
+  const groups = loadGroups();
+  const rows = db
+    .prepare("SELECT project_id, source_name FROM sot_project_members WHERE mapping_status = 'needs_mapping'")
+    .all() as unknown as { project_id: number; source_name: string }[];
+  let matched = 0;
+
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const update = db.prepare(`
+      UPDATE sot_project_members
+      SET model_group_id = ?, mapping_status = 'matched', mapping_method = ?
+      WHERE project_id = ? AND source_name = ?
+    `);
+    for (const row of rows) {
+      const match = matchModelGroup(row.source_name, groups);
+      if (!match) continue;
+      update.run(match.id, match.method, row.project_id, row.source_name);
+      matched += 1;
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
+  return { matched, remaining: rows.length - matched };
+}
+
+// ---------------------------------------------------------------------------
+// Menjalankan scraper
+// ---------------------------------------------------------------------------
+
+function watchChild(runId: number, kind: SotRunKind, child: ChildProcess) {
+  let result: { fys?: FyResult[]; items?: MemberItem[] } | null = null;
+  let scriptError: string | null = null;
+  let stderrTail = "";
+  let spawnError: string | null = null;
+
+  const safe = (fn: () => void) => {
+    try {
+      fn();
+    } catch {
+      // pencatatan tidak boleh menjatuhkan server
+    }
+  };
+
+  readline.createInterface({ input: child.stdout! }).on("line", (line) =>
+    safe(() => {
+      let msg: { type?: string; level?: string; message?: string; fys?: FyResult[]; items?: MemberItem[] };
+      try {
+        msg = JSON.parse(line);
+      } catch {
+        addLog(runId, "info", line);
+        return;
+      }
+      if (msg.type === "log") addLog(runId, msg.level ?? "info", msg.message ?? "");
+      else if (msg.type === "result") result = msg;
+      else if (msg.type === "error") scriptError = msg.message ?? "Proses SOT gagal.";
+    })
+  );
+  child.stderr!.on("data", (chunk: Buffer) => {
+    stderrTail = (stderrTail + chunk.toString("utf8")).slice(-1500);
+  });
+  child.on("error", (error) => {
+    spawnError = `Proses SOT tidak bisa dijalankan: ${error.message}`;
+  });
+
+  child.on("close", (code) => {
+    const handle = g.__sotRun;
+    const cancelled = handle?.runId === runId && handle.cancelled;
+    g.__sotRun = undefined;
+    safe(() => {
+      if (cancelled) {
+        addLog(runId, "warn", "Dibatalkan oleh pengguna");
+        finishRun(runId, "failed", 0, 0, "Dibatalkan oleh pengguna.");
+        return;
+      }
+      const failure = scriptError ?? spawnError ?? (code !== 0 || !result ? stderrTail.trim() || `Proses berhenti (kode ${code}).` : null);
+      if (failure) {
+        addLog(runId, "error", failure);
+        finishRun(runId, "failed", 0, 0, failure);
+        return;
+      }
+      try {
+        if (kind === "projects") {
+          const projects = applyProjectList(runId, result!.fys ?? []);
+          finishRun(runId, "success", projects, 0);
+        } else {
+          const done = applyMembers(runId, result!.items ?? []);
+          const remap = remapNeedsMapping();
+          if (remap.matched > 0) addLog(runId, "info", `${remap.matched} model lama berhasil dicocokkan ulang`);
+          finishRun(runId, "success", done.updated, done.members);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Gagal menyimpan hasil SOT.";
+        addLog(runId, "error", message);
+        finishRun(runId, "failed", 0, 0, message);
+      }
+    });
+  });
+}
+
+/** Memulai pembacaan SOT di latar belakang. Mengembalikan id run; kemajuannya dibaca lewat getSotState(). */
+export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
+  ensureTables();
+  reconcileStaleRun();
+  if (g.__sotRun) throw new Error("Masih ada proses SOT yang berjalan. Tunggu sampai selesai atau batalkan.");
+  const db = getDb();
+
+  let targets: { key: string; link: string }[] = [];
+  let detail: string | null = null;
+  if (kind === "members") {
+    const wanted = [...new Set(fys.map((fy) => fy.trim()).filter(Boolean))];
+    if (wanted.length === 0) throw new Error("Pilih minimal satu FY.");
+    targets = db
+      .prepare(
+        `SELECT external_key AS key, project_link AS link FROM sot_projects
+         WHERE is_active = 1 AND fy IN (${wanted.map(() => "?").join(",")}) ORDER BY id`
+      )
+      .all(...wanted) as unknown as { key: string; link: string }[];
+    if (targets.length === 0) throw new Error("Tidak ada project aktif pada FY yang dipilih. Baca daftar project dulu.");
+    detail = wanted.join(", ");
+  }
+
+  const run = db
+    .prepare("INSERT INTO sot_sync_runs (started_at, status, kind, detail) VALUES (?, 'running', ?, ?)")
+    .run(new Date().toISOString(), kind, detail);
+  const runId = Number(run.lastInsertRowid);
+
+  const child = spawn(process.execPath, [SCRIPT_PATH], {
+    cwd: process.cwd(),
+    env: process.env,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  g.__sotRun = { runId, child, cancelled: false };
+  watchChild(runId, kind, child);
+  child.stdin!.on("error", () => {});
+  child.stdin!.end(JSON.stringify({ kind, projectsUrl: PROJECTS_URL, targets }));
+  return runId;
+}
+
+export function cancelSotRun(): boolean {
+  const handle = g.__sotRun;
+  if (!handle || !handle.child.pid) return false;
+  handle.cancelled = true;
+  if (process.platform === "win32") {
+    // Edge ikut dimatikan (seluruh pohon proses), supaya profil tidak terkunci di run berikutnya.
+    spawn("taskkill", ["/PID", String(handle.child.pid), "/T", "/F"], { windowsHide: true });
+  } else {
+    handle.child.kill("SIGTERM");
+  }
+  return true;
+}
+
+/** Prefix + pencocokan ulang model. Tidak butuh browser, jadi langsung selesai. */
+export function runPrefixAndMapping(): PrefixBuildResult & { matched: number; remaining: number } {
+  ensureTables();
+  const prefix = buildModelPrefixes();
+  return { ...prefix, ...remapNeedsMapping() };
+}
+
+export function getSotState(): SotState {
+  ensureTables();
+  reconcileStaleRun();
+  const db = getDb();
+
+  const last = db
+    .prepare(
+      `SELECT id, kind, status, started_at, finished_at, detail, project_count, member_count, error_message
+       FROM sot_sync_runs ORDER BY id DESC LIMIT 1`
+    )
+    .get() as
+    | {
+        id: number; kind: SotRunKind; status: SotRunInfo["status"]; started_at: string; finished_at: string | null;
+        detail: string | null; project_count: number; member_count: number; error_message: string | null;
+      }
+    | undefined;
+
+  const logs = last
+    ? (db
+        .prepare("SELECT ts, level, message FROM sot_sync_logs WHERE run_id = ? ORDER BY id DESC LIMIT 40")
+        .all(last.id) as unknown as SotState["logs"]).reverse()
+    : [];
+
+  const fys = (
+    db
+      .prepare(
+        `SELECT p.fy AS fy, COUNT(*) AS projects,
+                SUM(CASE WHEN EXISTS (SELECT 1 FROM sot_project_members m WHERE m.project_id = p.id) THEN 1 ELSE 0 END) AS withMembers
+         FROM sot_projects p WHERE p.is_active = 1 GROUP BY p.fy ORDER BY p.fy DESC`
+      )
+      .all() as unknown as { fy: string; projects: number; withMembers: number }[]
+  ).map((row) => ({ fy: row.fy, projects: Number(row.projects), withMembers: Number(row.withMembers) }));
+
+  const count = (sql: string) => Number((db.prepare(sql).get() as { n: number }).n);
+  return {
+    running: Boolean(g.__sotRun),
+    run: last
+      ? {
+          id: last.id, kind: last.kind, status: last.status, startedAt: last.started_at, finishedAt: last.finished_at,
+          detail: last.detail, projectCount: last.project_count, memberCount: last.member_count, error: last.error_message,
+        }
+      : null,
+    logs,
+    fys,
+    totals: {
+      projects: count("SELECT COUNT(*) AS n FROM sot_projects WHERE is_active = 1"),
+      memberNames: count(
+        `SELECT COUNT(DISTINCT lower(m.source_name)) AS n FROM sot_project_members m
+         JOIN sot_projects p ON p.id = m.project_id WHERE p.is_active = 1`
+      ),
+      unmatched: count(
+        `SELECT COUNT(DISTINCT lower(m.source_name)) AS n FROM sot_project_members m
+         JOIN sot_projects p ON p.id = m.project_id WHERE p.is_active = 1 AND m.mapping_status = 'needs_mapping'`
+      ),
+    },
+    prefix: getPrefixSummary(),
+  };
 }
 
 export function getLastSotSync() {

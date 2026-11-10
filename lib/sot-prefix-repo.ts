@@ -109,3 +109,9 @@ export function getLastPrefixBuild() {
     .prepare("SELECT built_at, added, skipped, total FROM model_prefix_runs ORDER BY id DESC LIMIT 1")
     .get() as { built_at: string; added: number; skipped: number; total: number } | undefined;
 }
+
+export function getPrefixSummary(): { total: number; builtAt: string | null } {
+  ensurePrefixTables();
+  const total = Number((getDb().prepare("SELECT COUNT(*) AS n FROM model_prefixes").get() as { n: number }).n);
+  return { total, builtAt: getLastPrefixBuild()?.built_at ?? null };
+}

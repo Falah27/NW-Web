@@ -69,3 +69,48 @@ export function collectPrefixes(sources: string[]): { prefixes: string[]; skippe
   }
   return { prefixes: [...seen.values()], skipped };
 }
+
+// ---------------------------------------------------------------------------
+// Pencocokan nama model SOT dengan grup model di Monitoring Job (model_groups).
+// Dicoba dari yang paling ketat ke yang paling longgar, dan hanya dipakai
+// kalau hasilnya TEPAT SATU grup. Kalau ragu (0 atau lebih dari 1) hasilnya null
+// dan model tetap berstatus "needs_mapping".
+//   exact  : nama sama persis        SOT "Linus2-FAL"  -> grup "Linus2-FAL"
+//   base   : sama sebelum tanda "-"  SOT "Linus2"      -> grup "Linus2-FAL"
+//   prefix : prefix sama             SOT "Linus3"      -> grup "Linus2-FAL"  (paling longgar, perlu dicek)
+// ---------------------------------------------------------------------------
+
+export interface NamedGroup {
+  id: number;
+  name: string;
+}
+
+export type MatchMethod = "exact" | "base" | "prefix";
+
+function baseName(name: string): string {
+  return name.split("-")[0].trim().toLowerCase();
+}
+
+export function matchModelGroup(
+  sourceName: string,
+  groups: NamedGroup[]
+): { id: number; method: MatchMethod } | null {
+  const source = sourceName.trim().toLowerCase();
+  if (!source) return null;
+
+  const exact = groups.filter((g) => g.name.trim().toLowerCase() === source);
+  if (exact.length === 1) return { id: exact[0].id, method: "exact" };
+  if (exact.length > 1) return null;
+
+  const base = baseName(sourceName);
+  if (base) {
+    const sameBase = groups.filter((g) => baseName(g.name) === base);
+    if (sameBase.length === 1) return { id: sameBase[0].id, method: "base" };
+    if (sameBase.length > 1) return null;
+  }
+
+  const wanted = new Set(cleanPrefixes(sourceName).map((p) => p.toLowerCase()));
+  if (wanted.size === 0) return null;
+  const samePrefix = groups.filter((g) => cleanPrefixes(g.name).some((p) => wanted.has(p.toLowerCase())));
+  return samePrefix.length === 1 ? { id: samePrefix[0].id, method: "prefix" } : null;
+}
