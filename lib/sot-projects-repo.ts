@@ -32,8 +32,7 @@ export interface SotState {
   prefix: { total: number; builtAt: string | null };
 }
 
-const PROJECTS_URL =
-  process.env.SOT_PROJECTS_URL ?? "https://jpeaws482.apo.epson.net/redmine2/sot/projects";
+const PROJECTS_URL = process.env.SOT_PROJECTS_URL?.trim() ?? "";
 const SCRIPT_PATH = path.join(/* turbopackIgnore: true */ process.cwd(), "scripts", "sot-sync.mjs");
 
 // Satu proses sekaligus. Disimpan di globalThis supaya tidak hilang saat modul dimuat ulang (mode dev).
@@ -365,6 +364,7 @@ export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
   ensureTables();
   reconcileStaleRun();
   if (g.__sotRun) throw new Error("Masih ada proses SOT yang berjalan. Tunggu sampai selesai atau batalkan.");
+  if (!PROJECTS_URL) throw new Error("SOT_PROJECTS_URL wajib diisi di .env.local. Lihat .env.example.");
   const db = getDb();
 
   let targets: { key: string; link: string }[] = [];

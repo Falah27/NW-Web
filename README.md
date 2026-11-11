@@ -34,7 +34,8 @@ Berikan argumen kedua untuk mengimpor nama sheet yang berbeda.
 
 Tombol **Sinkron SOT** di halaman Monitoring Job membaca SOT lewat browser Microsoft Edge
 (Playwright). Aplikasi harus berjalan di komputer yang bisa membuka SOT (jaringan kantor) dan
-memiliki Microsoft Edge. Isi `SOT_PROJECTS_URL` di `.env.local` (lihat `.env.example`).
+memiliki Microsoft Edge. Isi `SOT_PROJECTS_URL` di `.env.local` (lihat `.env.example`); aplikasi
+menolak sinkronisasi jika URL tersebut kosong.
 
 Langkah di dialog:
 
