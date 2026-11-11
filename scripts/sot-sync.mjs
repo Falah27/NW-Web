@@ -1,8 +1,8 @@
 // Pembaca SOT berbasis browser. Dijalankan sebagai proses anak oleh aplikasi (lib/sot-projects-repo.ts),
 // bukan langsung oleh pengguna. Tidak menyentuh database: hasilnya dikirim ke aplikasi sebagai baris JSON di stdout.
 //
-// stdin  : {"kind":"projects"|"members","projectsUrl":"...","targets":[{"key":"...","link":"..."}],
-//           "teamLeaderId":"659","teamLeaderField":"cf_3"}   (dua terakhir opsional, hanya untuk kind "projects")
+// stdin  : {"kind":"projects"|"leader"|"members","projectsUrl":"...","targets":[{"key":"...","link":"..."}],
+//           "selectedFys":["FY18"],"teamLeaderId":"659","teamLeaderField":"cf_3"}   (field tambahan untuk leader)
 // stdout : {"type":"log","level":"info|warn","message":"..."}
 //          {"type":"result", ...}            (satu kali, di akhir)
 //          {"type":"error","message":"..."}  (satu kali, kalau gagal)
@@ -18,7 +18,7 @@ import {
   readProjectList,
   readTargetModels,
 } from "./sot/browser.mjs";
-import { narrowFysByIssues } from "./sot/team-filter.mjs";
+import { narrowFysByIssues, projectKey } from "./sot/team-filter.mjs";
 import { readIntEnv } from "./sot/retry.mjs";
 
 const TARGET_MODEL_LABEL = "対象機種";
@@ -57,55 +57,37 @@ try {
   await ensureProjectsPage(session);
 
   if (input.kind === "projects") {
-    let fys = await readProjectList(session);
+    const fys = await readProjectList(session);
     if (fys.length === 0) throw new Error("Tidak ada FY di bawah header 'Projects'. Struktur halaman SOT mungkin berubah.");
     const total = fys.reduce((n, fy) => n + fy.projects.length, 0);
     log("info", `${fys.length} FY dan ${total} project terbaca`);
 
-    // Filter Team Leader: hanya project yang punya issue dengan Team Leader itu yang dipertahankan.
-    // Gagal-aman: kalau ada FY yang gagal dibaca atau hasilnya kosong, proses dihentikan dan data lama tidak disentuh.
-    if (input.teamLeaderId) {
-      const leader = { leaderField: input.teamLeaderField || "cf_3", leaderId: String(input.teamLeaderId) };
-      log("info", `Filter Team Leader (${leader.leaderField} = ${leader.leaderId}): membaca issue ${fys.length} FY`);
-      const found = await readIssueProjects(
-        session,
-        fys,
-        { ...leader, timeoutMs: issueTimeoutMs, retries: issueRetries },
-        (done, all, result) => {
-          const label = result?.fy ?? "-";
-          const duration = result?.elapsedMs === undefined ? "" : `, ${(result.elapsedMs / 1000).toFixed(1)} dtk`;
-          log("info", `Issue FY ${done} dari ${all} (${label}${duration})`);
-        }
-      );
-
-      const failed = found.filter((f) => f.status !== "ok");
-      if (failed.length > 0) {
-        const describe = (result) => {
-          if (result.status === "skipped") return `${result.fy} (${result.message})`;
-          const location = result.page ? `halaman ${result.page}, ` : "";
-          const duration = result.elapsedMs === undefined ? "" : `, ${(result.elapsedMs / 1000).toFixed(1)} dtk`;
-          return `${result.fy} (${location}${result.message ?? result.status}${duration}, ${result.attempts ?? 1} percobaan)`;
-        };
-        throw new Error(
-          `Gagal membaca issue ${failed.map(describe).join(", ")}. Daftar project tidak diubah.`
-        );
-      }
-      for (const f of found) if (f.issues > 0) log("info", `${f.fy}: ${f.issues} issue di ${f.projects.length} project`);
-
-      const narrowed = narrowFysByIssues(fys, found.flatMap((f) => f.projects));
-      if (narrowed.kept === 0) {
-        throw new Error(
-          `Tidak ada issue untuk Team Leader ${leader.leaderId} (${leader.leaderField}). Periksa SOT_TEAM_LEADER_ID dan SOT_TEAM_LEADER_FIELD. Daftar project tidak diubah.`
-        );
-      }
-      if (narrowed.unmatched.length > 0) {
-        const names = narrowed.unmatched.slice(0, 10).join(", ");
-        log("warn", `${narrowed.unmatched.length} project di issue tidak ada di daftar project dan dilewati: ${names}${narrowed.unmatched.length > 10 ? ", ..." : ""}`);
-      }
-      log("info", `Filter Team Leader: ${narrowed.kept} dari ${narrowed.total} project dipertahankan`);
-      fys = narrowed.fys;
-    }
     emit({ type: "result", kind: "projects", fys });
+  } else if (input.kind === "leader") {
+    const selected = Array.isArray(input.selectedFys) ? input.selectedFys : [];
+    if (selected.length === 0) throw new Error("Pilih minimal satu FY.");
+    const allFys = await readProjectList(session);
+    const missing = selected.filter((label) => !allFys.some((fy) => fy.label === label));
+    if (missing.length > 0) throw new Error(`FY tidak ditemukan di SOT: ${missing.join(", ")}. Data project tidak diubah.`);
+    const selectedSet = new Set(selected);
+    const chosen = allFys.filter((fy) => selectedSet.has(fy.label));
+    const leader = { leaderField: input.teamLeaderField || "cf_3", leaderId: String(input.teamLeaderId || "") };
+    const found = await readIssueProjects(session, chosen, { ...leader, timeoutMs: issueTimeoutMs, retries: issueRetries }, (done, all, result) => {
+      const duration = result?.elapsedMs === undefined ? "" : `, ${(result.elapsedMs / 1000).toFixed(1)} dtk`;
+      log("info", `Issue FY ${done} dari ${all} (${result?.fy ?? "-"}${duration})`);
+    });
+    const failed = found.filter((f) => f.status !== "ok");
+    if (failed.length > 0) {
+      throw new Error(`Gagal membaca issue ${failed.map((f) => `${f.fy} (${f.message ?? f.status})`).join(", ")}. Data project tidak diubah.`);
+    }
+    const narrowed = narrowFysByIssues(chosen, found.flatMap((f) => f.projects));
+    if (narrowed.kept === 0) throw new Error(`Tidak ada issue untuk Team Leader ${leader.leaderId} (${leader.leaderField}). Data project tidak diubah.`);
+    emit({
+      type: "result",
+      kind: "leader",
+      scope: selected,
+      keptKeys: narrowed.fys.flatMap((fy) => fy.projects.map((project) => projectKey(project.link))),
+    });
   } else if (input.kind === "members") {
     const targets = Array.isArray(input.targets) ? input.targets : [];
     log("info", `Membaca target model ${targets.length} project`);

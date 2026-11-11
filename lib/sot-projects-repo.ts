@@ -8,7 +8,7 @@ import { matchModelGroup, type ManualMappings, type NamedGroup } from "./sot-pre
 // Pembacaan SOT dilakukan oleh scripts/sot-sync.mjs (browser Edge) sebagai proses anak.
 // File ini: menjalankan proses itu, menyimpan hasilnya ke database, dan melaporkan statusnya ke UI.
 
-export type SotRunKind = "projects" | "members";
+export type SotRunKind = "projects" | "leader" | "members";
 
 export interface SotRunInfo {
   id: number;
@@ -30,6 +30,7 @@ export interface SotState {
   fys: { fy: string; projects: number; withMembers: number }[];
   totals: { projects: number; memberNames: number; unmatched: number };
   prefix: { total: number; builtAt: string | null };
+  leaderConfigured: boolean;
 }
 
 const PROJECTS_URL = process.env.SOT_PROJECTS_URL?.trim() ?? "";
@@ -115,6 +116,33 @@ function applyProjectList(runId: number, fys: FyResult[]): number {
     throw error;
   }
   return total;
+}
+
+export function applyLeaderFilter(runId: number, scope: string[], keptKeys: string[]): { kept: number; deactivated: number } {
+  if (scope.length === 0) throw new Error("Scope FY kosong.");
+  const db = getDb();
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const deactivate = db.prepare("UPDATE sot_projects SET is_active = 0 WHERE fy = ?");
+    for (const fy of scope) deactivate.run(fy);
+    const activate = db.prepare("UPDATE sot_projects SET is_active = 1 WHERE external_key = ? AND fy = ?");
+    for (const key of keptKeys) {
+      for (const fy of scope) activate.run(key, fy);
+    }
+    const placeholders = scope.map(() => "?").join(",");
+    const kept = Number(
+      (db.prepare(`SELECT COUNT(*) AS n FROM sot_projects WHERE is_active = 1 AND fy IN (${placeholders})`).get(...scope) as { n: number }).n
+    );
+    const deactivated = Number(
+      (db.prepare(`SELECT COUNT(*) AS n FROM sot_projects WHERE is_active = 0 AND fy IN (${placeholders})`).get(...scope) as { n: number }).n
+    );
+    db.exec("COMMIT");
+    addLog(runId, "info", `Filter Team Leader: ${kept} dari ${kept + deactivated} project dipertahankan di ${scope.join(", ")} (${deactivated} dinonaktifkan)`);
+    return { kept, deactivated };
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
 function splitMembers(value: string): string[] {
@@ -234,7 +262,7 @@ export function remapNeedsMapping(): { matched: number; remaining: number } {
 // ---------------------------------------------------------------------------
 
 function watchChild(runId: number, kind: SotRunKind, child: ChildProcess) {
-  let result: { fys?: FyResult[]; items?: MemberItem[] } | null = null;
+  let result: { fys?: FyResult[]; items?: MemberItem[]; scope?: string[]; keptKeys?: string[] } | null = null;
   let scriptError: string | null = null;
   let stderrTail = "";
   let spawnError: string | null = null;
@@ -249,7 +277,7 @@ function watchChild(runId: number, kind: SotRunKind, child: ChildProcess) {
 
   readline.createInterface({ input: child.stdout! }).on("line", (line) =>
     safe(() => {
-      let msg: { type?: string; level?: string; message?: string; fys?: FyResult[]; items?: MemberItem[] };
+      let msg: { type?: string; level?: string; message?: string; fys?: FyResult[]; items?: MemberItem[]; scope?: string[]; keptKeys?: string[] };
       try {
         msg = JSON.parse(line);
       } catch {
@@ -288,6 +316,9 @@ function watchChild(runId: number, kind: SotRunKind, child: ChildProcess) {
         if (kind === "projects") {
           const projects = applyProjectList(runId, result!.fys ?? []);
           finishRun(runId, "success", projects, 0);
+        } else if (kind === "leader") {
+          const filtered = applyLeaderFilter(runId, result!.scope ?? [], result!.keptKeys ?? []);
+          finishRun(runId, "success", filtered.kept, 0);
         } else {
           const done = applyMembers(runId, result!.items ?? []);
           const remap = remapNeedsMapping();
@@ -324,19 +355,22 @@ export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
     if (targets.length === 0) throw new Error("Tidak ada project aktif pada FY yang dipilih. Baca daftar project dulu.");
     detail = wanted.join(", ");
   }
-  // Filter Team Leader (opsional, hanya untuk daftar project). Kosong = semua project, seperti sebelumnya.
   let teamLeaderId = "";
   let teamLeaderField = "cf_3";
-  if (kind === "projects") {
+  let selectedFys: string[] = [];
+  if (kind === "leader") {
+    selectedFys = [...new Set(fys.map((fy) => fy.trim()).filter(Boolean))];
+    if (selectedFys.length === 0) throw new Error("Pilih minimal satu FY.");
     teamLeaderId = process.env.SOT_TEAM_LEADER_ID?.trim() ?? "";
-    if (teamLeaderId && !/^\d+$/.test(teamLeaderId)) {
+    if (!teamLeaderId) throw new Error("SOT_TEAM_LEADER_ID belum diisi di .env.local.");
+    if (!/^\d+$/.test(teamLeaderId)) {
       throw new Error("SOT_TEAM_LEADER_ID harus berupa angka (ID user di SOT), contoh 659.");
     }
     teamLeaderField = process.env.SOT_TEAM_LEADER_FIELD?.trim() || "cf_3";
     if (!/^cf_\d+$/.test(teamLeaderField)) {
       throw new Error('SOT_TEAM_LEADER_FIELD harus berformat "cf_<angka>", contoh cf_3.');
     }
-    if (teamLeaderId) detail = `Team Leader ${teamLeaderId}`;
+    detail = `Team Leader ${teamLeaderId}: ${selectedFys.join(", ")}`;
   }
 
   const run = db
@@ -352,7 +386,7 @@ export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
   g.__sotRun = { runId, child, cancelled: false };
   watchChild(runId, kind, child);
   child.stdin!.on("error", () => {});
-  child.stdin!.end(JSON.stringify({ kind, projectsUrl: PROJECTS_URL, targets, teamLeaderId, teamLeaderField }));
+  child.stdin!.end(JSON.stringify({ kind, projectsUrl: PROJECTS_URL, targets, selectedFys, teamLeaderId, teamLeaderField }));
   return runId;
 }
 
@@ -427,6 +461,8 @@ export function getSotState(): SotState {
   ).map((row) => ({ fy: row.fy, projects: Number(row.projects), withMembers: Number(row.withMembers) }));
 
   const count = (sql: string) => Number((db.prepare(sql).get() as { n: number }).n);
+  const leaderId = process.env.SOT_TEAM_LEADER_ID?.trim() ?? "";
+  const leaderField = process.env.SOT_TEAM_LEADER_FIELD?.trim() || "cf_3";
   return {
     running: Boolean(g.__sotRun),
     run: last
@@ -450,6 +486,7 @@ export function getSotState(): SotState {
       ),
     },
     prefix: getPrefixSummary(),
+    leaderConfigured: /^\d+$/.test(leaderId) && /^cf_\d+$/.test(leaderField),
   };
 }
 

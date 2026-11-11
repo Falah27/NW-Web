@@ -41,14 +41,14 @@ menolak sinkronisasi jika URL tersebut kosong.
 
 Langkah di dialog:
 
-1. **Daftar project**: membaca semua FY dan project. Project baru ditambah, yang sudah ada diperbarui,
-   yang hilang dari SOT ditandai tidak aktif.
-   Jika `SOT_TEAM_LEADER_ID` diisi, daftar dipersempit ke project yang punya issue dengan Team Leader tersebut
-   (semua status, semua FY). Project tim lain ikut ditandai tidak aktif. Kalau ada FY yang gagal dibaca atau hasilnya
-   kosong (mis. ID salah), proses berhenti dan data lama tidak diubah. Restart `npm run dev` setelah mengubah `.env.local`.
-2. **Target model**: pilih FY, lalu target model tiap project dibaca. Hanya project yang berhasil
+1. **Daftar project**: membaca semua FY dan project dari satu halaman. Project baru ditambah, yang sudah ada diperbarui,
+   dan project yang tidak lagi terlihat ditandai tidak aktif. Langkah ini juga mengaktifkan kembali project yang terlihat.
+2. **Saring Team Leader (opsional)**: jika `SOT_TEAM_LEADER_ID` valid, pilih FY yang ingin disaring.
+   Hanya project pada FY terpilih tanpa issue Team Leader yang ditandai tidak aktif; FY lain tidak berubah.
+   Jika ada FY terpilih yang gagal dibaca atau hasilnya kosong, proses berhenti dan data lama tidak diubah.
+3. **Target model**: pilih FY, lalu target model tiap project dibaca. Hanya project yang berhasil
    dibaca yang ditimpa. Project tanpa field atau yang gagal dibaca tetap memakai data lama.
-3. **Cocokkan model**: membangun daftar prefix dan mencocokkan nama model SOT dengan grup model
+4. **Cocokkan model**: membangun daftar prefix dan mencocokkan nama model SOT dengan grup model
    di Monitoring Job (persis sama, sama sebelum tanda `-`, atau prefix sama).
    Hanya dicocokkan jika hasilnya tepat satu grup. Pencocokan lewat prefix perlu dicek manual.
 

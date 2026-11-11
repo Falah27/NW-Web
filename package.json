@@ -12,7 +12,7 @@
     "lint": "eslint",
     "db:init": "tsx scripts/init-db.mjs",
     "import:xlsm": "node scripts/import-xlsm.mjs",
-    "test:sot": "node --test scripts/test-sot-prefix.mjs scripts/test-sot-team-filter.mjs scripts/test-sot-retry.mjs",
+    "test:sot": "node --test scripts/test-sot-prefix.mjs scripts/test-sot-team-filter.mjs scripts/test-sot-retry.mjs scripts/test-sot-leader-scope.mjs",
     "test:date": "node scripts/test-date-zones.mjs",
     "test:import": "tsx --test scripts/test-import.mjs",
     "test:migrations": "tsx --test scripts/test-migrations.mjs"

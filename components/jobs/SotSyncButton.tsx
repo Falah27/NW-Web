@@ -11,7 +11,7 @@ import {
 } from "@/app/jobs/sot-sync-action";
 import type { SotState } from "@/lib/sot-projects-repo";
 
-const kindLabel = { projects: "Daftar project", members: "Target model" } as const;
+const kindLabel = { projects: "Daftar project", leader: "Saring Team Leader", members: "Target model" } as const;
 
 function Card({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
@@ -30,6 +30,7 @@ export default function SotSyncButton() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<SotState | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedLeaderFys, setSelectedLeaderFys] = useState<string[]>([]);
   const [notice, setNotice] = useState<SotActionResult | null>(null);
   const [pending, startTransition] = useTransition();
   const [prefixPending, setPrefixPending] = useState(false);
@@ -82,12 +83,17 @@ export default function SotSyncButton() {
   const run = state?.run ?? null;
   const progress = state?.progress ?? { done: 0, total: 0, empty: 0, failed: 0 };
   const allSelected = fys.length > 0 && selected.length === fys.length;
+  const allLeaderSelected = fys.length > 0 && selectedLeaderFys.length === fys.length;
   const progressPercent = progress.total
     ? Math.min(100, Math.round((progress.done / progress.total) * 100))
     : 0;
 
   function toggle(fy: string) {
     setSelected((cur) => (cur.includes(fy) ? cur.filter((x) => x !== fy) : [...cur, fy]));
+  }
+
+  function toggleLeader(fy: string) {
+    setSelectedLeaderFys((cur) => (cur.includes(fy) ? cur.filter((x) => x !== fy) : [...cur, fy]));
   }
 
   return (
@@ -129,13 +135,46 @@ export default function SotSyncButton() {
               </p>
             )}
 
-            <Card title="1. Daftar project" desc="Membaca FY dan project dari halaman SOT. Jika SOT_TEAM_LEADER_ID diisi, hanya project yang punya issue dengan Team Leader itu yang dipertahankan; project lain ditandai tidak aktif.">
+            <Card title="1. Daftar project" desc="Membaca semua FY dan project dari satu halaman SOT. Menjalankan langkah ini mengaktifkan kembali semua project yang ditemukan.">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm text-slate-600">{state ? `${state.totals.projects} project aktif` : "Memuat..."}</span>
                 <button type="button" disabled={busy} onClick={() => act(() => startSotRunAction("projects"))} className={primary}>
                   Baca daftar project
                 </button>
               </div>
+            </Card>
+
+            <Card
+              title="1b. Saring Team Leader (opsional)"
+              desc={state?.leaderConfigured ? "Project di FY yang dipilih tanpa issue Team Leader akan ditandai tidak aktif. FY lain tidak berubah." : "Fitur ini membutuhkan SOT_TEAM_LEADER_ID di .env.local."}
+            >
+              {state?.leaderConfigured ? (
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center gap-2 text-sm font-semibold">
+                    <input type="checkbox" className="h-4 w-4" checked={allLeaderSelected} onChange={() => setSelectedLeaderFys(allLeaderSelected ? [] : fys.map((f) => f.fy))} />
+                    Pilih semua
+                  </label>
+                  <ul className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
+                    {fys.map((f) => (
+                      <li key={`leader-${f.fy}`}>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" className="h-4 w-4" checked={selectedLeaderFys.includes(f.fy)} onChange={() => toggleLeader(f.fy)} />
+                          <span className="font-medium">{f.fy}</span>
+                          <span className="text-xs text-slate-500">{f.projects} project aktif</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex justify-end">
+                    <button type="button" disabled={busy || selectedLeaderFys.length === 0} onClick={() => act(() => startSotRunAction("leader", selectedLeaderFys))} className={primary}>
+                      Saring FY terpilih ({selectedLeaderFys.length} FY)
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500">FY lain tidak berubah. Jalankan ulang langkah 1 untuk mengaktifkan kembali semua project, lalu ulangi penyaringan ini.</p>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">Isi SOT_TEAM_LEADER_ID di .env.local untuk mengaktifkan penyaringan Team Leader.</p>
+              )}
             </Card>
 
             <Card title="2. Target model" desc="Membuka halaman tiap project pada FY yang dipilih dan membaca target modelnya.">
@@ -248,7 +287,7 @@ export default function SotSyncButton() {
                 {run.status === "failed" && run.error && <p className="mt-2 text-sm text-red-800">{run.error}</p>}
                 {run.status === "success" && (
                   <p className="mt-2 text-sm text-slate-600">
-                    {run.kind === "projects" ? `${run.projectCount} project` : `${run.projectCount} project, ${run.memberCount} target model`}
+                    {run.kind === "members" ? `${run.projectCount} project, ${run.memberCount} target model` : `${run.projectCount} project`}
                   </p>
                 )}
                 <ul className="mt-2 max-h-36 overflow-y-auto font-mono text-[11px] leading-5 text-slate-600">
