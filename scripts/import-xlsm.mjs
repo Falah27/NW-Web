@@ -23,12 +23,12 @@ const workbook = XLSX.readFile(workbookPath, {
   cellStyles: true,
   bookVBA: true,
 });
-const sheet = workbook.Sheets[sheetName];
-if (!sheet) {
+if (!workbook.SheetNames.includes(sheetName)) {
   throw new Error(
     `Sheet "${sheetName}" not found. Available sheets: ${workbook.SheetNames.join(", ")}`
   );
 }
+const sheet = workbook.Sheets[sheetName];
 
 const rows = XLSX.utils.sheet_to_json(sheet, {
   header: 1,
@@ -67,6 +67,9 @@ const columns = {
 };
 
 const dataRows = rows.slice(headerRowIndex + 1);
+if (dataRows.length > 20000) {
+  throw new Error("The sheet exceeds the 20,000 job row limit.");
+}
 const jobs = [];
 for (let offset = 0; offset < dataRows.length; offset += 1) {
   const row = dataRows[offset];

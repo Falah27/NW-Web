@@ -14,6 +14,7 @@ export interface LastSync {
 }
 
 type LookupTable = "members" | "model_groups" | "modules" | "stages";
+const MAX_ROWS = 20_000;
 
 interface ParsedJob {
   id: string;
@@ -66,24 +67,30 @@ function dateValue(value: unknown): string | null {
   return null;
 }
 
-function parseWorkbook(buffer: Buffer, sheetName: string): { jobs: ParsedJob[] } {
+export function parseWorkbook(buffer: Buffer, sheetName: string): { jobs: ParsedJob[] } {
+  if (buffer.length < 4 || buffer.subarray(0, 4).compare(Buffer.from([0x50, 0x4b, 0x03, 0x04])) !== 0) {
+    throw new Error("File bukan workbook XLSX/XLSM yang valid (ZIP signature tidak ditemukan).");
+  }
   const workbook = XLSX.read(buffer, {
     type: "buffer",
     cellFormula: false,
     cellNF: false,
     cellStyles: true,
   });
-  const sheet = workbook.Sheets[sheetName];
-  if (!sheet) {
+  if (!workbook.SheetNames.includes(sheetName)) {
     throw new Error(
       `Sheet "${sheetName}" tidak ditemukan. Sheet yang ada: ${workbook.SheetNames.join(", ")}`
     );
   }
+  const sheet = workbook.Sheets[sheetName];
 
   const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null, raw: true });
   const headerRowIndex = rows.findIndex((row) => row.some((v) => normalize(v) === "job items"));
   if (headerRowIndex < 0) {
     throw new Error(`Header tabel job ("Job Items") tidak ditemukan di sheet "${sheetName}".`);
+  }
+  if (rows.length - headerRowIndex - 1 > MAX_ROWS) {
+    throw new Error(`Sheet "${sheetName}" melebihi batas ${MAX_ROWS.toLocaleString("id-ID")} baris job.`);
   }
 
   const headers = rows[headerRowIndex].map(normalize);

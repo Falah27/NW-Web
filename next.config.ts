@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["172.16.231.52"],
   experimental: {
     agentFeedback: true,
     serverActions: {
-      bodySizeLimit: "30mb",
+      bodySizeLimit: "11mb",
     },
   },
   cacheComponents: true,

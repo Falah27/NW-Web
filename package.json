@@ -10,7 +10,8 @@
     "db:init": "node scripts/init-db.mjs",
     "import:xlsm": "node scripts/import-xlsm.mjs",
     "test:sot": "node --test scripts/test-sot-prefix.mjs scripts/test-sot-team-filter.mjs",
-    "test:date": "node scripts/test-date-zones.mjs"
+    "test:date": "node scripts/test-date-zones.mjs",
+    "test:import": "tsx --test scripts/test-import.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.22",
@@ -23,7 +24,7 @@
     "playwright-core": "^1.65.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -33,6 +34,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
