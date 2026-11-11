@@ -5,6 +5,7 @@
 // File ini tidak menyentuh database. Hasilnya dikembalikan sebagai objek biasa.
 import { chromium } from "playwright-core";
 import { buildIssuesUrl } from "./team-filter.mjs";
+import { readAllWithRetry } from "./retry.mjs";
 
 const WAIT_MS = 15_000; // batas tunggu halaman target
 const LOGIN_WAIT_MS = 30_000; // batas tunggu link login / halaman target setelah login
@@ -12,8 +13,7 @@ const POLL_MS = 500;
 export const FETCH_CHUNK = 25; // halaman project per panggilan browser
 const FETCH_CONCURRENCY = 6;
 const LOGIN_TEXT = "login with companyaccount";
-const ISSUE_CHUNK = 4; // FY per panggilan browser saat membaca daftar issue
-const ISSUE_CONCURRENCY = 2;
+const ISSUE_CONCURRENCY = 1;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -259,7 +259,7 @@ export async function readTargetModels(session, targets, label, onProgress) {
 // Dijalankan DI DALAM tab SOT. Untuk tiap job { url } membaca daftar issue (semua halaman) dan mengumpulkan
 // project dari kolom Project. Harus berdiri sendiri (tidak boleh memakai variabel di luar fungsi ini).
 // Status: ok | login | http | error | unexpected (bukan halaman issue) | noproject (kolom Project tidak tampil).
-export async function fetchIssueProjects({ jobs, concurrency }) {
+export async function fetchIssueProjects({ jobs, concurrency, timeoutMs }) {
   const out = new Array(jobs.length);
   let next = 0;
 
@@ -269,34 +269,50 @@ export async function fetchIssueProjects({ jobs, concurrency }) {
     for (let page = 1; page <= 100; page += 1) {
       const url = new URL(job.url);
       url.searchParams.set("page", String(page));
-      const r = await fetch(url.toString(), { credentials: "same-origin", signal: AbortSignal.timeout(30_000) });
-      if (r.url.toLowerCase().includes("login")) return { status: "login" };
-      if (!r.ok) return { status: "http", message: "HTTP " + r.status };
-
-      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
-      const rows = Array.from(doc.querySelectorAll("table.list.issues tr.issue"));
-      if (rows.length === 0) {
-        if (page === 1 && !doc.querySelector("p.nodata")) {
-          return { status: "unexpected", message: "tabel issue tidak ditemukan di halaman" };
+      const startedAt = Date.now();
+      try {
+        const r = await fetch(url.toString(), {
+          credentials: "same-origin",
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+        const elapsedMs = Date.now() - startedAt;
+        if (r.url.toLowerCase().includes("login")) return { status: "login", page, elapsedMs };
+        if (!r.ok) {
+          return { status: "http", code: r.status, message: `HTTP ${r.status}`, page, elapsedMs };
         }
-        break;
-      }
 
-      let withProject = 0;
-      for (const row of rows) {
-        const a = row.querySelector("td.project a");
-        if (!a) continue;
-        withProject += 1;
-        const href = new URL(a.getAttribute("href"), location.href).href;
-        if (!projects.has(href)) projects.set(href, { href, name: (a.textContent || "").replace(/\s+/g, " ").trim() });
-      }
-      if (withProject === 0) return { status: "noproject", message: "kolom Project tidak tampil di daftar issue" };
-      issues += rows.length;
+        const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+        const rows = Array.from(doc.querySelectorAll("table.list.issues tr.issue"));
+        if (rows.length === 0) {
+          if (page === 1 && !doc.querySelector("p.nodata")) {
+            return { status: "unexpected", message: "tabel issue tidak ditemukan di halaman", page, elapsedMs };
+          }
+          break;
+        }
 
-      // "(1-100/181)": lanjut selama baris terakhir halaman ini belum mencapai total.
-      const info = doc.querySelector(".pagination .items") || doc.querySelector("span.items");
-      const m = info && (info.textContent || "").match(/\((\d+)-(\d+)\/(\d+)\)/);
-      if (!m || Number(m[2]) >= Number(m[3])) break;
+        let withProject = 0;
+        for (const row of rows) {
+          const a = row.querySelector("td.project a");
+          if (!a) continue;
+          withProject += 1;
+          const href = new URL(a.getAttribute("href"), location.href).href;
+          if (!projects.has(href)) projects.set(href, { href, name: (a.textContent || "").replace(/\s+/g, " ").trim() });
+        }
+        if (withProject === 0) return { status: "noproject", message: "kolom Project tidak tampil di daftar issue", page, elapsedMs };
+        issues += rows.length;
+
+        // "(1-100/181)": lanjut selama baris terakhir halaman ini belum mencapai total.
+        const info = doc.querySelector(".pagination .items") || doc.querySelector("span.items");
+        const m = info && (info.textContent || "").match(/\((\d+)-(\d+)\/(\d+)\)/);
+        if (!m || Number(m[2]) >= Number(m[3])) break;
+      } catch (error) {
+        const elapsedMs = Date.now() - startedAt;
+        const message =
+          error?.name === "TimeoutError"
+            ? `timeout setelah ${(elapsedMs / 1000).toFixed(1)} dtk pada halaman ${page}`
+            : `${error?.message || String(error)} pada halaman ${page} setelah ${(elapsedMs / 1000).toFixed(1)} dtk`;
+        return { status: "error", message, page, elapsedMs };
+      }
     }
     return { status: "ok", issues, projects: Array.from(projects.values()) };
   }
@@ -320,26 +336,30 @@ export async function fetchIssueProjects({ jobs, concurrency }) {
  * Baca issue Team Leader di tiap FY. Kalau sesi habis (login), login ulang dan ulangi kelompok itu satu kali.
  * Mengembalikan [{ fy, link, status, issues?, projects?, message? }] searah dengan `fys`.
  */
-export async function readIssueProjects(session, fys, { leaderField, leaderId }, onProgress) {
-  const results = [];
-  for (let a = 0; a < fys.length; a += ISSUE_CHUNK) {
-    const chunk = fys.slice(a, a + ISSUE_CHUNK);
-    const run = () =>
-      session.page.evaluate(fetchIssueProjects, {
-        jobs: chunk.map((fy) => ({ url: buildIssuesUrl(fy.link, { leaderField, leaderId }) })),
-        concurrency: ISSUE_CONCURRENCY,
-      });
+export async function readIssueProjects(session, fys, { leaderField, leaderId, timeoutMs = 120_000, retries = 2 }, onProgress) {
+  const found = await readAllWithRetry({
+    fys,
+    retries,
+    sleep,
+    interReadDelayMs: 500,
+    onWarn: (message) => session.log("warn", message),
+    onProgress: (done, total, result) => onProgress?.(done, total, result),
+    readOne: async (fy) => {
+      const run = () =>
+        session.page.evaluate(fetchIssueProjects, {
+          jobs: [{ url: buildIssuesUrl(fy.link, { leaderField, leaderId }) }],
+          concurrency: ISSUE_CONCURRENCY,
+          timeoutMs,
+        });
 
-    let statuses = await run();
-    if (statuses.some((s) => s?.status === "login")) {
-      session.log("warn", "Sesi SOT habis, login ulang");
-      await ensureProjectsPage(session);
-      statuses = await run();
-    }
-    chunk.forEach((fy, i) =>
-      results.push({ fy: fy.label, link: fy.link, ...(statuses[i] ?? { status: "error", message: "tidak ada hasil" }) })
-    );
-    onProgress?.(Math.min(a + chunk.length, fys.length), fys.length);
-  }
-  return results;
+      let status = (await run())[0] ?? { status: "error", message: "tidak ada hasil" };
+      if (status.status === "login") {
+        session.log("warn", "Sesi SOT habis, login ulang");
+        await ensureProjectsPage(session);
+        status = (await run())[0] ?? { status: "error", message: "tidak ada hasil setelah login ulang" };
+      }
+      return status;
+    },
+  });
+  return found.map((result, index) => ({ ...result, link: fys[index]?.link ?? fys.find((fy) => fy.label === result.fy)?.link }));
 }

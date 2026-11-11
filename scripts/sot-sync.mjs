@@ -19,8 +19,11 @@ import {
   readTargetModels,
 } from "./sot/browser.mjs";
 import { narrowFysByIssues } from "./sot/team-filter.mjs";
+import { readIntEnv } from "./sot/retry.mjs";
 
 const TARGET_MODEL_LABEL = "対象機種";
+const issueTimeoutMs = readIntEnv(process.env.SOT_FETCH_TIMEOUT_MS, { def: 120_000, min: 10_000, max: 600_000 });
+const issueRetries = readIntEnv(process.env.SOT_FETCH_RETRIES, { def: 2, min: 0, max: 5 });
 
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 const log = (level, message) => emit({ type: "log", level, message });
@@ -64,12 +67,27 @@ try {
     if (input.teamLeaderId) {
       const leader = { leaderField: input.teamLeaderField || "cf_3", leaderId: String(input.teamLeaderId) };
       log("info", `Filter Team Leader (${leader.leaderField} = ${leader.leaderId}): membaca issue ${fys.length} FY`);
-      const found = await readIssueProjects(session, fys, leader, (done, all) => log("info", `Issue FY ${done} dari ${all}`));
+      const found = await readIssueProjects(
+        session,
+        fys,
+        { ...leader, timeoutMs: issueTimeoutMs, retries: issueRetries },
+        (done, all, result) => {
+          const label = result?.fy ?? "-";
+          const duration = result?.elapsedMs === undefined ? "" : `, ${(result.elapsedMs / 1000).toFixed(1)} dtk`;
+          log("info", `Issue FY ${done} dari ${all} (${label}${duration})`);
+        }
+      );
 
       const failed = found.filter((f) => f.status !== "ok");
       if (failed.length > 0) {
+        const describe = (result) => {
+          if (result.status === "skipped") return `${result.fy} (${result.message})`;
+          const location = result.page ? `halaman ${result.page}, ` : "";
+          const duration = result.elapsedMs === undefined ? "" : `, ${(result.elapsedMs / 1000).toFixed(1)} dtk`;
+          return `${result.fy} (${location}${result.message ?? result.status}${duration}, ${result.attempts ?? 1} percobaan)`;
+        };
         throw new Error(
-          `Gagal membaca issue ${failed.map((f) => `${f.fy} (${f.message ?? f.status})`).join(", ")}. Daftar project tidak diubah.`
+          `Gagal membaca issue ${failed.map(describe).join(", ")}. Daftar project tidak diubah.`
         );
       }
       for (const f of found) if (f.issues > 0) log("info", `${f.fy}: ${f.issues} issue di ${f.projects.length} project`);

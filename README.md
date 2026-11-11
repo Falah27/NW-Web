@@ -57,6 +57,19 @@ Jendela Edge terbuka di komputer server. Login CompanyAccount disimpan di profil
 Jika login butuh input manual, biarkan `SOT_HEADLESS` kosong dan selesaikan login di jendela Edge.
 Proses berjalan di latar belakang dan bisa dibatalkan dari dialog.
 
+### Pembacaan SOT lambat atau timeout
+
+Pembacaan issue Team Leader berjalan satu FY per satu, dengan retry per FY dan pemutus berantai
+setelah tiga FY berturut-turut gagal. Atur nilainya di environment server bila diperlukan:
+
+- `SOT_FETCH_TIMEOUT_MS` (default `120000`, valid `10000`–`600000`)
+- `SOT_FETCH_RETRIES` (default `2`, berarti maksimal tiga percobaan per FY; valid `0`–`5`)
+
+Jika masih ada FY gagal, sinkronisasi gagal-aman dan daftar project di database tidak diubah.
+Untuk menguji manual, buka URL issue FY di Edge dan ukur durasinya melalui DevTools → Network.
+Waktu terburuk dapat sangat panjang: 17 FY × 3 percobaan × 120 detik ≈ 1,7 jam,
+tetapi pemutus berantai membatasi pembacaan saat server kemungkinan sedang kewalahan.
+
 ## Batasan deployment
 
 Aplikasi ini dirancang untuk satu proses server. Status proses sinkronisasi SOT disimpan di memori
