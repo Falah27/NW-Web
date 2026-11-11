@@ -51,4 +51,8 @@ export function runMigrations(db: DatabaseSync): void {
       PRAGMA user_version = 3;
     `);
   }
+  if (Number((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version) < 4) {
+    addColumn(db, "jobs", "locally_modified", "INTEGER NOT NULL DEFAULT 0");
+    db.exec("PRAGMA user_version = 4");
+  }
 }

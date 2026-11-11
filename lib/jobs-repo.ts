@@ -160,7 +160,7 @@ export function updateJob(id: string, input: JobInput): void {
       .prepare(
         `UPDATE jobs SET sot_no = ?, sot_status = ?, model_group_id = ?, module_id = ?,
            stage_id = ?, job_item = ?, assignee_id = ?, detail_job = ?, remarks = ?,
-           progress = ?, start_date = ?, end_date = ?, updated_at = datetime('now')
+           progress = ?, start_date = ?, end_date = ?, locally_modified = CASE WHEN id NOT LIKE 'manual-%' THEN 1 ELSE locally_modified END, updated_at = datetime('now')
          WHERE id = ?`
       )
       .run(

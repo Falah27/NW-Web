@@ -1,9 +1,14 @@
 import * as XLSX from "xlsx";
+import { createHash } from "node:crypto";
 import { getDb } from "./db";
 
 export interface ImportResult {
   count: number;
   archived: number;
+  added: number;
+  updated: number;
+  deleted: number;
+  skippedLocal: number;
 }
 
 export interface LastSync {
@@ -125,8 +130,8 @@ export function parseWorkbook(buffer: Buffer, sheetName: string): { jobs: Parsed
     const excelRow = headerRowIndex + offset + 2;
     const employeeId = assignee.match(/\b(iei\d+)\b/i)?.[1]?.toLowerCase() ?? null;
     const memberName = assignee.replace(/\s+\biei\d+\b/i, "").trim();
-    jobs.push({
-      id: `excel-${excelRow}`,
+    const parsed = {
+      id: "",
       excelRow,
       model,
       module: text(at(row, c.module)),
@@ -142,7 +147,14 @@ export function parseWorkbook(buffer: Buffer, sheetName: string): { jobs: Parsed
       startDate: dateValue(at(row, c.startDate)),
       endDate: dateValue(at(row, c.endDate)),
       archived: Boolean(sheet["!rows"]?.[excelRow - 1]?.hidden),
-    });
+    };
+    const fingerprint = [parsed.sotNo, parsed.model, parsed.module, parsed.stage, parsed.jobItem, parsed.assignee]
+      .map(normalize)
+      .join("\u001f");
+    const baseId = `excel-${createHash("sha1").update(fingerprint).digest("hex").slice(0, 16)}`;
+    const duplicateCount = jobs.filter((job) => job.id === baseId || job.id.startsWith(`${baseId}#`)).length;
+    parsed.id = duplicateCount === 0 ? baseId : `${baseId}#${duplicateCount + 1}`;
+    jobs.push(parsed);
   });
 
   if (jobs.length === 0) throw new Error(`Tidak ada baris job yang bisa diimpor dari sheet "${sheetName}".`);
@@ -178,34 +190,61 @@ export function importWorkbook(buffer: Buffer, fileName: string, sheetName: stri
     return (db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name) as { id: number }).id;
   };
 
+  let added = 0;
+  let updated = 0;
+  let deleted = 0;
+  let skippedLocal = 0;
   db.exec("BEGIN IMMEDIATE");
   try {
-    db.exec("DELETE FROM jobs WHERE id NOT LIKE 'manual-%'");
+    const existing = new Map(
+      (db.prepare("SELECT id, locally_modified FROM jobs WHERE id LIKE 'excel-%'").all() as { id: string; locally_modified: number }[])
+        .map((row) => [row.id, row])
+    );
+    const seen = new Set<string>();
     const insertJob = db.prepare(`
       INSERT INTO jobs (
         id, sot_no, sot_status, model_group_id, module_id, stage_id, job_item,
         assignee_id, detail_job, remarks, progress, start_date, end_date,
-        is_archived, excel_row_key
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        is_archived, excel_row_key,
+        locally_modified
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const updateJob = db.prepare(`
+      UPDATE jobs SET sot_no = ?, sot_status = ?, model_group_id = ?, module_id = ?, stage_id = ?, job_item = ?,
+        assignee_id = ?, detail_job = ?, remarks = ?, progress = ?, start_date = ?, end_date = ?, is_archived = ?,
+        excel_row_key = ?, locally_modified = 0, updated_at = datetime('now') WHERE id = ?
     `);
     for (const job of jobs) {
-      insertJob.run(
-        job.id,
-        job.sotNo,
-        job.sotStatus,
-        getOrCreate("model_groups", job.model),
-        getOrCreate("modules", job.module),
-        getOrCreate("stages", job.stage),
-        job.jobItem,
-        getOrCreate("members", job.assignee, job.employeeId),
-        job.detail,
-        job.remarks,
-        job.progress,
-        job.startDate,
-        job.endDate,
-        job.archived ? 1 : 0,
-        String(job.excelRow)
-      );
+      const values = [
+        job.sotNo, job.sotStatus, getOrCreate("model_groups", job.model), getOrCreate("modules", job.module),
+        getOrCreate("stages", job.stage), job.jobItem, getOrCreate("members", job.assignee, job.employeeId),
+        job.detail, job.remarks, job.progress, job.startDate, job.endDate, job.archived ? 1 : 0, String(job.excelRow),
+      ];
+      const old = existing.get(job.id);
+      if (old?.locally_modified) {
+        skippedLocal += 1;
+        seen.add(job.id);
+        continue;
+      }
+      if (old) {
+        updateJob.run(...values, job.id);
+        updated += 1;
+      } else {
+        insertJob.run(
+          job.id,
+          ...values,
+          0,
+        );
+        added += 1;
+      }
+      seen.add(job.id);
+    }
+    for (const old of existing.values()) {
+      if (seen.has(old.id) || old.locally_modified) {
+        if (old.locally_modified && !seen.has(old.id)) skippedLocal += 1;
+        continue;
+      }
+      deleted += Number(db.prepare("DELETE FROM jobs WHERE id = ? AND locally_modified = 0").run(old.id).changes);
     }
 
     // Grup model yang masih dipakai tabel SOT (project member / mapping manual) tidak boleh dihapus,
@@ -240,5 +279,5 @@ export function importWorkbook(buffer: Buffer, fileName: string, sheetName: stri
     throw error;
   }
 
-  return { count: jobs.length, archived: jobs.filter((j) => j.archived).length };
+  return { count: jobs.length, archived: jobs.filter((j) => j.archived).length, added, updated, deleted, skippedLocal };
 }

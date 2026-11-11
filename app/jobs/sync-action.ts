@@ -25,11 +25,11 @@ export async function syncExcelAction(_prev: SyncState, formData: FormData): Pro
     if (buffer.length < 4 || buffer.subarray(0, 4).compare(Buffer.from([0x50, 0x4b, 0x03, 0x04])) !== 0) {
       return { ok: false, error: "File bukan workbook XLSX/XLSM yang valid (ZIP signature tidak ditemukan)." };
     }
-    const { count, archived } = importWorkbook(buffer, file.name, sheetName);
+    const { count, archived, added, updated, deleted, skippedLocal } = importWorkbook(buffer, file.name, sheetName);
     revalidatePath("/", "layout");
     return {
       ok: true,
-      message: `${count} job berhasil diimpor dari ${file.name} (${archived} diarsipkan).`,
+      message: `${count} job diproses dari ${file.name}: ${added} ditambah, ${updated} diperbarui, ${deleted} dihapus, ${skippedLocal} dilewati karena diedit lokal (${archived} diarsipkan).`,
     };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Gagal mengimpor file." };

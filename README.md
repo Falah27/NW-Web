@@ -26,6 +26,8 @@ Importer memetakan tabel job berdasarkan header, mempertahankan tanggal dan prog
 mengambil employee ID dari kolom assignee, lalu mengganti data job lokal dalam satu transaksi.
 Data member (`role`, `skills`, `email`) tidak dihapus saat import.
 Berikan argumen kedua untuk mengimpor nama sheet yang berbeda.
+Pada impor pertama setelah pembaruan ID, job lama dengan ID `excel-<baris>` dianggap belum diedit lokal
+dan akan diganti dengan ID stabil berbasis isi baris.
 
 > Catatan: `npm run db:init` menghapus dan membuat ulang `data/dev.db`.
 > Jalankan hanya sekali di awal, bukan sebelum setiap import.
