@@ -129,7 +129,7 @@ export default function SotSyncButton() {
               </p>
             )}
 
-            <Card title="1. Daftar project" desc="Membaca semua FY dan project dari halaman SOT. Project baru ditambahkan, yang sudah ada diperbarui.">
+            <Card title="1. Daftar project" desc="Membaca FY dan project dari halaman SOT. Jika SOT_TEAM_LEADER_ID diisi, hanya project yang punya issue dengan Team Leader itu yang dipertahankan; project lain ditandai tidak aktif.">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-sm text-slate-600">{state ? `${state.totals.projects} project aktif` : "Memuat..."}</span>
                 <button type="button" disabled={busy} onClick={() => act(() => startSotRunAction("projects"))} className={primary}>

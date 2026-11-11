@@ -72,9 +72,10 @@ export function collectPrefixes(sources: string[]): { prefixes: string[]; skippe
 
 // ---------------------------------------------------------------------------
 // Pencocokan nama model SOT dengan grup model di Monitoring Job (model_groups).
-// Dicoba dari yang paling ketat ke yang paling longgar, dan hanya dipakai
-// kalau hasilnya TEPAT SATU grup. Kalau ragu (0 atau lebih dari 1) hasilnya null
-// dan model tetap berstatus "needs_mapping".
+// Mapping manual (tabel sot_model_mappings) selalu didahulukan. Setelah itu dicoba dari
+// yang paling ketat ke yang paling longgar, dan hanya dipakai kalau hasilnya TEPAT SATU
+// grup. Kalau ragu (0 atau lebih dari 1) hasilnya null dan model tetap "needs_mapping".
+//   manual : dipilih pengguna        (dari sot_model_mappings, kunci huruf kecil)
 //   exact  : nama sama persis        SOT "Linus2-FAL"  -> grup "Linus2-FAL"
 //   base   : sama sebelum tanda "-"  SOT "Linus2"      -> grup "Linus2-FAL"
 //   prefix : prefix sama             SOT "Linus3"      -> grup "Linus2-FAL"  (paling longgar, perlu dicek)
@@ -85,7 +86,10 @@ export interface NamedGroup {
   name: string;
 }
 
-export type MatchMethod = "exact" | "base" | "prefix";
+export type MatchMethod = "manual" | "exact" | "base" | "prefix";
+
+/** Kunci = source_name huruf kecil tanpa spasi tepi, nilai = id model_groups. */
+export type ManualMappings = ReadonlyMap<string, number>;
 
 function baseName(name: string): string {
   return name.split("-")[0].trim().toLowerCase();
@@ -93,10 +97,17 @@ function baseName(name: string): string {
 
 export function matchModelGroup(
   sourceName: string,
-  groups: NamedGroup[]
+  groups: NamedGroup[],
+  manualMappings?: ManualMappings
 ): { id: number; method: MatchMethod } | null {
   const source = sourceName.trim().toLowerCase();
   if (!source) return null;
+
+  // Mapping manual menang atas aturan otomatis, selama grupnya masih ada.
+  const manualId = manualMappings?.get(source);
+  if (manualId !== undefined && groups.some((g) => g.id === manualId)) {
+    return { id: manualId, method: "manual" };
+  }
 
   const exact = groups.filter((g) => g.name.trim().toLowerCase() === source);
   if (exact.length === 1) return { id: exact[0].id, method: "exact" };

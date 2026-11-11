@@ -207,8 +207,20 @@ export function importWorkbook(buffer: Buffer, fileName: string, sheetName: stri
       );
     }
 
+    // Grup model yang masih dipakai tabel SOT (project member / mapping manual) tidak boleh dihapus,
+    // kalau tidak foreign key gagal dan seluruh import di-rollback.
+    const tableExists = (name: string) =>
+      db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name) !== undefined;
+    const keepGroups = ["SELECT model_group_id FROM jobs"];
+    if (tableExists("sot_project_members")) {
+      keepGroups.push("SELECT model_group_id FROM sot_project_members WHERE model_group_id IS NOT NULL");
+    }
+    if (tableExists("sot_model_mappings")) {
+      keepGroups.push("SELECT model_group_id FROM sot_model_mappings");
+    }
+
     db.exec(`
-      DELETE FROM model_groups WHERE id NOT IN (SELECT model_group_id FROM jobs);
+      DELETE FROM model_groups WHERE id NOT IN (${keepGroups.join(" UNION ")});
       DELETE FROM modules WHERE id NOT IN (SELECT module_id FROM jobs WHERE module_id IS NOT NULL);
       DELETE FROM stages WHERE id NOT IN (SELECT stage_id FROM jobs WHERE stage_id IS NOT NULL);
     `);

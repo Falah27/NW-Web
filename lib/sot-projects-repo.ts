@@ -3,7 +3,7 @@ import path from "node:path";
 import readline from "node:readline";
 import { getDb } from "./db";
 import { buildModelPrefixes, getPrefixSummary, type PrefixBuildResult } from "./sot-prefix-repo";
-import { matchModelGroup, type NamedGroup } from "./sot-prefix";
+import { matchModelGroup, type ManualMappings, type NamedGroup } from "./sot-prefix";
 
 // Pembacaan SOT dilakukan oleh scripts/sot-sync.mjs (browser Edge) sebagai proses anak.
 // File ini: menjalankan proses itu, menyimpan hasilnya ke database, dan melaporkan statusnya ke UI.
@@ -63,6 +63,12 @@ function ensureTables() {
       model_group_id INTEGER REFERENCES model_groups(id),
       mapping_status TEXT NOT NULL CHECK (mapping_status IN ('matched', 'needs_mapping')),
       PRIMARY KEY (project_id, source_name)
+    );
+    CREATE TABLE IF NOT EXISTS sot_model_mappings (
+      source_name TEXT PRIMARY KEY COLLATE NOCASE,
+      model_group_id INTEGER NOT NULL REFERENCES model_groups(id),
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE TABLE IF NOT EXISTS sot_sync_runs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,11 +184,22 @@ function loadGroups(): NamedGroup[] {
   return getDb().prepare("SELECT id, name FROM model_groups").all() as unknown as NamedGroup[];
 }
 
+// Mapping manual dari halaman SOT Job. Harus dibaca setiap kali mencocokkan model,
+// kalau tidak pilihan pengguna tertimpa saat sinkron "Target model" berikutnya.
+function loadManualMappings(): ManualMappings {
+  ensureTables();
+  const rows = getDb()
+    .prepare("SELECT source_name, model_group_id FROM sot_model_mappings")
+    .all() as unknown as { source_name: string; model_group_id: number }[];
+  return new Map(rows.map((row) => [row.source_name.trim().toLowerCase(), row.model_group_id]));
+}
+
 // Target model: hanya project yang berhasil dibaca yang ditimpa. "Tidak ada field" atau gagal
 // membiarkan data lama apa adanya (sama seperti macro VBA).
 function applyMembers(runId: number, items: MemberItem[]): { updated: number; members: number } {
   const db = getDb();
   const groups = loadGroups();
+  const manual = loadManualMappings();
   const groupName = new Map(groups.map((g2) => [g2.id, g2.name]));
   const notes: { level: string; message: string }[] = [];
   let updated = 0;
@@ -214,10 +231,10 @@ function applyMembers(runId: number, items: MemberItem[]): { updated: number; me
       }
       clear.run(project.id);
       for (const name of splitMembers(item.value)) {
-        const match = matchModelGroup(name, groups);
+        const match = matchModelGroup(name, groups, manual);
         insert.run(project.id, name, match?.id ?? null, match ? "matched" : "needs_mapping", match?.method ?? null);
         members += 1;
-        if (match && match.method !== "exact") {
+        if (match && match.method !== "exact" && match.method !== "manual") {
           fuzzy += 1;
           if (fuzzy <= 15) {
             notes.push({ level: "info", message: `Dicocokkan lewat ${match.method}: "${name}" -> "${groupName.get(match.id)}"` });
@@ -242,6 +259,7 @@ export function remapNeedsMapping(): { matched: number; remaining: number } {
   ensureTables();
   const db = getDb();
   const groups = loadGroups();
+  const manual = loadManualMappings();
   const rows = db
     .prepare("SELECT project_id, source_name FROM sot_project_members WHERE mapping_status = 'needs_mapping'")
     .all() as unknown as { project_id: number; source_name: string }[];
@@ -255,7 +273,7 @@ export function remapNeedsMapping(): { matched: number; remaining: number } {
       WHERE project_id = ? AND source_name = ?
     `);
     for (const row of rows) {
-      const match = matchModelGroup(row.source_name, groups);
+      const match = matchModelGroup(row.source_name, groups, manual);
       if (!match) continue;
       update.run(match.id, match.method, row.project_id, row.source_name);
       matched += 1;
@@ -363,6 +381,20 @@ export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
     if (targets.length === 0) throw new Error("Tidak ada project aktif pada FY yang dipilih. Baca daftar project dulu.");
     detail = wanted.join(", ");
   }
+  // Filter Team Leader (opsional, hanya untuk daftar project). Kosong = semua project, seperti sebelumnya.
+  let teamLeaderId = "";
+  let teamLeaderField = "cf_3";
+  if (kind === "projects") {
+    teamLeaderId = process.env.SOT_TEAM_LEADER_ID?.trim() ?? "";
+    if (teamLeaderId && !/^\d+$/.test(teamLeaderId)) {
+      throw new Error("SOT_TEAM_LEADER_ID harus berupa angka (ID user di SOT), contoh 659.");
+    }
+    teamLeaderField = process.env.SOT_TEAM_LEADER_FIELD?.trim() || "cf_3";
+    if (!/^cf_\d+$/.test(teamLeaderField)) {
+      throw new Error('SOT_TEAM_LEADER_FIELD harus berformat "cf_<angka>", contoh cf_3.');
+    }
+    if (teamLeaderId) detail = `Team Leader ${teamLeaderId}`;
+  }
 
   const run = db
     .prepare("INSERT INTO sot_sync_runs (started_at, status, kind, detail) VALUES (?, 'running', ?, ?)")
@@ -377,7 +409,7 @@ export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
   g.__sotRun = { runId, child, cancelled: false };
   watchChild(runId, kind, child);
   child.stdin!.on("error", () => {});
-  child.stdin!.end(JSON.stringify({ kind, projectsUrl: PROJECTS_URL, targets }));
+  child.stdin!.end(JSON.stringify({ kind, projectsUrl: PROJECTS_URL, targets, teamLeaderId, teamLeaderField }));
   return runId;
 }
 

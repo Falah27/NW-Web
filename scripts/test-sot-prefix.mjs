@@ -52,3 +52,20 @@ test("matchModelGroup: tiga tingkat dan batas keraguan", () => {
   assert.equal(matchModelGroup("", groups), null);
   assert.equal(matchModelGroup("X1", groups), null);       // prefix terlalu pendek
 });
+
+
+test("matchModelGroup: mapping manual didahulukan dan tahan sinkron ulang", () => {
+  const groups = [
+    { id: 1, name: "Linus2-FAL" },
+    { id: 2, name: "Nifty" },
+  ];
+  const manual = new Map([["foo bar", 2]]); // kunci huruf kecil
+  assert.deepEqual(matchModelGroup("Foo Bar", groups, manual), { id: 2, method: "manual" });
+  assert.deepEqual(matchModelGroup("  foo bar ", groups, manual), { id: 2, method: "manual" });
+  // manual mengalahkan aturan otomatis
+  assert.deepEqual(matchModelGroup("Linus2", groups, new Map([["linus2", 2]])), { id: 2, method: "manual" });
+  // grup sudah dihapus: jatuh kembali ke aturan otomatis, bukan crash atau id yatim
+  assert.equal(matchModelGroup("Foo Bar", [{ id: 1, name: "Linus2-FAL" }], manual), null);
+  // tanpa argumen manual perilaku lama tidak berubah
+  assert.deepEqual(matchModelGroup("nifty", groups), { id: 2, method: "exact" });
+});

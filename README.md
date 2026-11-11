@@ -40,6 +40,9 @@ Langkah di dialog:
 
 1. **Daftar project**: membaca semua FY dan project. Project baru ditambah, yang sudah ada diperbarui,
    yang hilang dari SOT ditandai tidak aktif.
+   Jika `SOT_TEAM_LEADER_ID` diisi, daftar dipersempit ke project yang punya issue dengan Team Leader tersebut
+   (semua status, semua FY). Project tim lain ikut ditandai tidak aktif. Kalau ada FY yang gagal dibaca atau hasilnya
+   kosong (mis. ID salah), proses berhenti dan data lama tidak diubah. Restart `npm run dev` setelah mengubah `.env.local`.
 2. **Target model**: pilih FY, lalu target model tiap project dibaca. Hanya project yang berhasil
    dibaca yang ditimpa. Project tanpa field atau yang gagal dibaca tetap memakai data lama.
 3. **Cocokkan model**: membangun daftar prefix dan mencocokkan nama model SOT dengan grup model

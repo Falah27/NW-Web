@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:init": "node scripts/init-db.mjs",
     "import:xlsm": "node scripts/import-xlsm.mjs",
-    "test:sot": "node --test scripts/test-sot-prefix.mjs"
+    "test:sot": "node --test scripts/test-sot-prefix.mjs scripts/test-sot-team-filter.mjs"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.22",

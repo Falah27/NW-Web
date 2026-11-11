@@ -4,6 +4,7 @@
 //   - halaman project dibaca dengan fetch() DI DALAM tab SOT (bukan membuka halaman satu-satu)
 // File ini tidak menyentuh database. Hasilnya dikembalikan sebagai objek biasa.
 import { chromium } from "playwright-core";
+import { buildIssuesUrl } from "./team-filter.mjs";
 
 const WAIT_MS = 15_000; // batas tunggu halaman target
 const LOGIN_WAIT_MS = 30_000; // batas tunggu link login / halaman target setelah login
@@ -11,6 +12,8 @@ const POLL_MS = 500;
 export const FETCH_CHUNK = 25; // halaman project per panggilan browser
 const FETCH_CONCURRENCY = 6;
 const LOGIN_TEXT = "login with companyaccount";
+const ISSUE_CHUNK = 4; // FY per panggilan browser saat membaca daftar issue
+const ISSUE_CONCURRENCY = 2;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -248,6 +251,95 @@ export async function readTargetModels(session, targets, label, onProgress) {
     }
     chunk.forEach((t, i) => results.push({ key: t.key, ...(statuses[i] ?? { status: "error", message: "tidak ada hasil" }) }));
     onProgress?.(Math.min(a + chunk.length, targets.length), targets.length);
+  }
+  return results;
+}
+
+
+// Dijalankan DI DALAM tab SOT. Untuk tiap job { url } membaca daftar issue (semua halaman) dan mengumpulkan
+// project dari kolom Project. Harus berdiri sendiri (tidak boleh memakai variabel di luar fungsi ini).
+// Status: ok | login | http | error | unexpected (bukan halaman issue) | noproject (kolom Project tidak tampil).
+export async function fetchIssueProjects({ jobs, concurrency }) {
+  const out = new Array(jobs.length);
+  let next = 0;
+
+  async function readJob(job) {
+    const projects = new Map();
+    let issues = 0;
+    for (let page = 1; page <= 100; page += 1) {
+      const url = new URL(job.url);
+      url.searchParams.set("page", String(page));
+      const r = await fetch(url.toString(), { credentials: "same-origin", signal: AbortSignal.timeout(30_000) });
+      if (r.url.toLowerCase().includes("login")) return { status: "login" };
+      if (!r.ok) return { status: "http", message: "HTTP " + r.status };
+
+      const doc = new DOMParser().parseFromString(await r.text(), "text/html");
+      const rows = Array.from(doc.querySelectorAll("table.list.issues tr.issue"));
+      if (rows.length === 0) {
+        if (page === 1 && !doc.querySelector("p.nodata")) {
+          return { status: "unexpected", message: "tabel issue tidak ditemukan di halaman" };
+        }
+        break;
+      }
+
+      let withProject = 0;
+      for (const row of rows) {
+        const a = row.querySelector("td.project a");
+        if (!a) continue;
+        withProject += 1;
+        const href = new URL(a.getAttribute("href"), location.href).href;
+        if (!projects.has(href)) projects.set(href, { href, name: (a.textContent || "").replace(/\s+/g, " ").trim() });
+      }
+      if (withProject === 0) return { status: "noproject", message: "kolom Project tidak tampil di daftar issue" };
+      issues += rows.length;
+
+      // "(1-100/181)": lanjut selama baris terakhir halaman ini belum mencapai total.
+      const info = doc.querySelector(".pagination .items") || doc.querySelector("span.items");
+      const m = info && (info.textContent || "").match(/\((\d+)-(\d+)\/(\d+)\)/);
+      if (!m || Number(m[2]) >= Number(m[3])) break;
+    }
+    return { status: "ok", issues, projects: Array.from(projects.values()) };
+  }
+
+  async function worker() {
+    for (;;) {
+      const i = next++;
+      if (i >= jobs.length) return;
+      try {
+        out[i] = await readJob(jobs[i]);
+      } catch (e) {
+        out[i] = { status: "error", message: String((e && e.message) || e) };
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, jobs.length) }, worker));
+  return out;
+}
+
+/**
+ * Baca issue Team Leader di tiap FY. Kalau sesi habis (login), login ulang dan ulangi kelompok itu satu kali.
+ * Mengembalikan [{ fy, link, status, issues?, projects?, message? }] searah dengan `fys`.
+ */
+export async function readIssueProjects(session, fys, { leaderField, leaderId }, onProgress) {
+  const results = [];
+  for (let a = 0; a < fys.length; a += ISSUE_CHUNK) {
+    const chunk = fys.slice(a, a + ISSUE_CHUNK);
+    const run = () =>
+      session.page.evaluate(fetchIssueProjects, {
+        jobs: chunk.map((fy) => ({ url: buildIssuesUrl(fy.link, { leaderField, leaderId }) })),
+        concurrency: ISSUE_CONCURRENCY,
+      });
+
+    let statuses = await run();
+    if (statuses.some((s) => s?.status === "login")) {
+      session.log("warn", "Sesi SOT habis, login ulang");
+      await ensureProjectsPage(session);
+      statuses = await run();
+    }
+    chunk.forEach((fy, i) =>
+      results.push({ fy: fy.label, link: fy.link, ...(statuses[i] ?? { status: "error", message: "tidak ada hasil" }) })
+    );
+    onProgress?.(Math.min(a + chunk.length, fys.length), fys.length);
   }
   return results;
 }

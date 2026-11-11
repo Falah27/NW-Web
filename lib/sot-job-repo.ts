@@ -95,7 +95,9 @@ export function getSotJobData(): SotJobData {
     updatedAt: row.updated_at,
     targets: targetsByProject.get(row.id) ?? [],
   }));
-  const targets = projects.flatMap((project) => project.targets);
+  // Ringkasan hanya menghitung project aktif, supaya project yang sudah tidak masuk filter tidak ikut terhitung.
+  const activeProjects = projects.filter((project) => project.isActive);
+  const targets = activeProjects.flatMap((project) => project.targets);
   const lastSync = db
     .prepare(
       `SELECT finished_at FROM sot_sync_runs
@@ -108,8 +110,8 @@ export function getSotJobData(): SotJobData {
     projects,
     lastSyncAt: lastSync?.finished_at ?? null,
     totals: {
-      projects: projects.filter((project) => project.isActive).length,
-      fys: new Set(projects.filter((project) => project.isActive).map((project) => project.fy)).size,
+      projects: activeProjects.length,
+      fys: new Set(activeProjects.map((project) => project.fy)).size,
       targets: targets.length,
       matched: targets.filter((target) => target.status === "matched").length,
       unmatched: targets.filter((target) => target.status === "needs_mapping").length,
@@ -143,30 +145,38 @@ export function saveSotManualMapping(projectId: number, sourceName: string, mode
     .get(projectId) as { 1: number } | undefined;
   if (!project) throw new Error("Project SOT tidak ditemukan.");
 
-  if (modelGroupId === null) {
-    const result = db.prepare(
-      `UPDATE sot_project_members
-       SET model_group_id = NULL, mapping_status = 'needs_mapping', mapping_method = NULL
-       WHERE project_id = ? AND source_name = ?`
-    ).run(projectId, sourceName);
-    if (Number(result.changes) === 0) throw new Error("Target model SOT tidak ditemukan.");
-    return;
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (modelGroupId === null) {
+      const result = db.prepare(
+        `UPDATE sot_project_members
+         SET model_group_id = NULL, mapping_status = 'needs_mapping', mapping_method = NULL
+         WHERE project_id = ? AND source_name = ?`
+      ).run(projectId, sourceName);
+      if (Number(result.changes) === 0) throw new Error("Target model SOT tidak ditemukan.");
+      // Hapus juga mapping permanennya, kalau tidak sinkron berikutnya memasangnya lagi.
+      db.prepare("DELETE FROM sot_model_mappings WHERE source_name = ?").run(sourceName);
+    } else {
+      const group = db.prepare("SELECT 1 FROM model_groups WHERE id = ?").get(modelGroupId);
+      if (!group) throw new Error("Model group tidak ditemukan.");
+      const result = db.prepare(
+        `UPDATE sot_project_members
+         SET model_group_id = ?, mapping_status = 'matched', mapping_method = 'manual'
+         WHERE project_id = ? AND source_name = ?`
+      ).run(modelGroupId, projectId, sourceName);
+      if (Number(result.changes) === 0) throw new Error("Target model SOT tidak ditemukan.");
+
+      db.prepare(
+        `INSERT INTO sot_model_mappings (source_name, model_group_id, updated_at)
+         VALUES (?, ?, datetime('now'))
+         ON CONFLICT(source_name) DO UPDATE SET model_group_id = excluded.model_group_id, updated_at = excluded.updated_at`
+      ).run(sourceName, modelGroupId);
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
   }
-
-  const group = db.prepare("SELECT 1 FROM model_groups WHERE id = ?").get(modelGroupId);
-  if (!group) throw new Error("Model group tidak ditemukan.");
-  const result = db.prepare(
-    `UPDATE sot_project_members
-     SET model_group_id = ?, mapping_status = 'matched', mapping_method = 'manual'
-     WHERE project_id = ? AND source_name = ?`
-  ).run(modelGroupId, projectId, sourceName);
-  if (Number(result.changes) === 0) throw new Error("Target model SOT tidak ditemukan.");
-
-  db.prepare(
-    `INSERT INTO sot_model_mappings (source_name, model_group_id, updated_at)
-     VALUES (?, ?, datetime('now'))
-     ON CONFLICT(source_name) DO UPDATE SET model_group_id = excluded.model_group_id, updated_at = excluded.updated_at`
-  ).run(sourceName, modelGroupId);
 }
 
 export function clearSotData(): void {
