@@ -13,7 +13,7 @@ const ALL = "all";
 
 function fmt(d: string | null) {
   if (!d) return "-";
-  return new Date(d).toLocaleDateString("id-ID", {
+  return new Date(`${d}T00:00:00Z`).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "2-digit",
@@ -61,7 +61,7 @@ function Select({
   );
 }
 
-export default function JobsTable({ jobs, members }: { jobs: Job[]; members: string[] }) {
+export default function JobsTable({ jobs, members, today }: { jobs: Job[]; members: string[]; today: string }) {
   const [q, setQ] = useState("");
   const [model, setModel] = useState(ALL);
   const [mod, setMod] = useState(ALL);
@@ -75,8 +75,8 @@ export default function JobsTable({ jobs, members }: { jobs: Job[]; members: str
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const withStatus = useMemo(
-    () => jobs.map((j) => ({ ...j, status: computeStatus(j) })),
-    [jobs]
+    () => jobs.map((j) => ({ ...j, status: computeStatus(j, today) })),
+    [jobs, today]
   );
 
   const uniq = (key: "model" | "module" | "stage" | "assignee") =>
@@ -203,6 +203,7 @@ export default function JobsTable({ jobs, members }: { jobs: Job[]; members: str
       </p>
       <JobDetailDrawer
         job={selected}
+        today={today}
         onClose={() => setSelected(null)}
         onEdit={(j) => {
           setSelected(null);

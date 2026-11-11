@@ -3,12 +3,13 @@ import { connection } from "next/server";
 import JobCalendar from "@/components/calendar/JobCalendar";
 import { getJobs } from "@/lib/jobs-repo";
 import { getEvents } from "@/lib/events-repo";
+import { todayISO } from "@/lib/date";
 
 async function CalendarContent() {
   await connection();
   const jobs = getJobs();
   const events = getEvents();
-  return <JobCalendar jobs={jobs} events={events} />;
+  return <JobCalendar jobs={jobs} events={events} today={todayISO()} />;
 }
 
 export default function CalendarPage() {

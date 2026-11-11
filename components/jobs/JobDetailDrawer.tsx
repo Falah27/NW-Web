@@ -3,20 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { Job, JobStatus } from "@/lib/types";
-import { todayISO } from "@/lib/status";
+import { diffDaysISO } from "@/lib/date";
 
 type JobWithStatus = Job & { status: JobStatus };
 
-const DAY_MS = 86_400_000;
-
-const toTime = (iso: string) => new Date(iso + "T00:00:00").getTime();
-const diffDays = (from: string, to: string) =>
-  Math.round((toTime(to) - toTime(from)) / DAY_MS);
 const clamp = (n: number, min = 0, max = 100) => Math.min(max, Math.max(min, n));
 
 function fmt(iso: string | null, short = false) {
   if (!iso) return "-";
-  return new Date(iso + "T00:00:00").toLocaleDateString("id-ID", {
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString("id-ID", {
     day: "numeric",
     month: short ? "short" : "long",
     year: "numeric",
@@ -82,10 +77,10 @@ function timeHint(job: JobWithStatus, today: string): string {
   if (!job.startDate || !job.endDate) return "Isi Start Date dan End Date di Excel";
   if (job.status === "Closed") return "Semua pekerjaan sudah selesai";
   if (job.status === "Open") {
-    const n = diffDays(today, job.startDate);
+    const n = diffDaysISO(today, job.startDate);
     return n === 1 ? "Mulai besok" : `Mulai ${n} hari lagi`;
   }
-  const left = diffDays(today, job.endDate);
+  const left = diffDaysISO(today, job.endDate);
   if (left > 0) return `Sisa ${left} hari sampai deadline`;
   if (left === 0) return "Deadline hari ini";
   return `Terlambat ${Math.abs(left)} hari`;
@@ -185,11 +180,13 @@ export default function JobDetailDrawer({
   onClose,
   onEdit,
   onDelete,
+  today,
 }: {
   job: JobWithStatus | null;
   onClose: () => void;
   onEdit?: (job: Job) => void;
   onDelete?: (job: Job) => void | Promise<void>;
+  today: string;
 }) {
   useEffect(() => {
     if (!job) return;
@@ -208,12 +205,11 @@ export default function JobDetailDrawer({
   if (!job) return null;
 
   const t = theme[job.status];
-  const today = todayISO();
   const pct = Math.round(job.progress * 100);
   const hasDates = !!job.startDate && !!job.endDate;
-  const totalDays = hasDates ? diffDays(job.startDate!, job.endDate!) + 1 : null;
+  const totalDays = hasDates ? diffDaysISO(job.startDate!, job.endDate!) + 1 : null;
   const elapsedPct = hasDates
-    ? clamp((diffDays(job.startDate!, today) / Math.max(1, totalDays! - 1)) * 100)
+    ? clamp((diffDaysISO(job.startDate!, today) / Math.max(1, totalDays! - 1)) * 100)
     : 0;
   const showToday = hasDates && (job.status === "Running" || job.status === "Over");
 

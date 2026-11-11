@@ -5,12 +5,13 @@ import AddJobButton from "@/components/jobs/AddJobButton";
 import SyncButton from "@/components/jobs/SyncButton";
 import { getJobs, getMembers } from "@/lib/jobs-repo";
 import { getLastSync } from "@/lib/xlsm-import";
+import { todayISO } from "@/lib/date";
 
 async function JobsContent() {
   await connection();
   const jobs = getJobs();
   const members = getMembers().map((m) => m.name);
-  return <JobsTable jobs={jobs} members={members} />;
+  return <JobsTable jobs={jobs} members={members} today={todayISO()} />;
 }
 
 async function AddJobButtonLoader() {

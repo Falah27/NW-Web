@@ -13,6 +13,7 @@ import EventFormDrawer from "@/components/calendar/EventFormDrawer";
 import CalendarDetailDrawer, { type Selected } from "@/components/calendar/CalendarDetailDrawer";
 import JobDetailDrawer from "@/components/jobs/JobDetailDrawer";
 import { deleteEventAction } from "@/app/calendar/actions";
+import { addDaysISO } from "@/lib/date";
 
 const ALL = "all";
 type Palette = { bg: string; border: string; text: string };
@@ -40,12 +41,6 @@ const KINDS: { key: EventKind; label: string }[] = [
   { key: "holiday", label: "Libur" },
 ];
 
-function addDay(iso: string): string {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + 1);
-  return d.toISOString().slice(0, 10);
-}
-
 function initials(name: string) {
   return name
     .split(" ")
@@ -55,8 +50,8 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-function effectiveStatus(job: Job): JobStatus {
-  return job.archived ? "Closed" : computeStatus(job);
+function effectiveStatus(job: Job, today: string): JobStatus {
+  return job.archived ? "Closed" : computeStatus(job, today);
 }
 
 function Chip({
@@ -95,7 +90,7 @@ function Chip({
   );
 }
 
-export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: TeamEvent[] }) {
+export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; events: TeamEvent[]; today: string }) {
   const [mode, setMode] = useState<Mode>("due");
   const [model, setModel] = useState(ALL);
   const [pic, setPic] = useState(ALL);
@@ -130,26 +125,26 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
   const counts = useMemo(() => {
     const result: Record<ShownStatus, number> = { Running: 0, Open: 0, Over: 0, Closed: 0 };
     for (const job of scheduled) {
-      const status = effectiveStatus(job);
+      const status = effectiveStatus(job, today);
       if (status !== "-") result[status] += 1;
     }
     return result;
-  }, [scheduled]);
+  },   [scheduled, today]);
 
   const calendarEvents = useMemo<EventInput[]>(() => {
     const jobEvents: EventInput[] = scheduled
       .filter((job) => {
-        const status = effectiveStatus(job);
+        const status = effectiveStatus(job, today);
         return status === "-" || statusOn[status];
       })
       .map((job) => {
-        const status = effectiveStatus(job);
+        const status = effectiveStatus(job, today);
         const palette = statusColor[status];
         return {
           id: `job-${job.id}`,
           title: job.jobItem,
           ...(mode === "range"
-            ? { start: job.startDate!, end: addDay(job.endDate!) }
+            ? { start: job.startDate!, end: addDaysISO(job.endDate!, 1) }
             : { start: job.endDate! }),
           allDay: true,
           backgroundColor: palette.bg,
@@ -173,7 +168,7 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
           id: `ev-${event.id}`,
           title: event.title,
           start: event.start,
-          end: addDay(event.end ?? event.start),
+          end: addDaysISO(event.end ?? event.start, 1),
           allDay: true,
           backgroundColor: palette.bg,
           borderColor: palette.border,
@@ -183,7 +178,7 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
       });
 
     return [...agendaEvents, ...jobEvents];
-  }, [scheduled, events, statusOn, kindOn, mode]);
+  }, [scheduled, events, statusOn, kindOn, mode, today]);
 
   function handleDeleteEvent(event: TeamEvent) {
     if (!window.confirm(`Hapus event "${event.title}"?`)) return;
@@ -284,7 +279,7 @@ export default function JobCalendar({ jobs, events }: { jobs: Job[]; events: Tea
       </p>
 
       {selected?.type === "job" ? (
-        <JobDetailDrawer job={{ ...selected.job, status: selected.status }} onClose={() => setSelected(null)} />
+        <JobDetailDrawer job={{ ...selected.job, status: selected.status }} today={today} onClose={() => setSelected(null)} />
       ) : (
         <CalendarDetailDrawer selected={selected} onClose={() => setSelected(null)} onDeleteEvent={handleDeleteEvent} deleting={deleting} deleteError={deleteError} />
       )}
