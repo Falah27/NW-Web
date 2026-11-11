@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { clearSotData, saveSotManualMapping } from "@/lib/sot-job-repo";
+import { toPublicError } from "@/lib/errors";
 
 export type SotMappingActionResult = { ok: boolean; error?: string };
 
@@ -13,7 +14,7 @@ export async function clearSotDataAction(): Promise<SotResetActionResult> {
     revalidatePath("/sot-job");
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal menghapus data SOT." };
+    return { ok: false, error: toPublicError(error, "Gagal menghapus data SOT.") };
   }
 }
 
@@ -33,6 +34,6 @@ export async function saveSotManualMappingAction(
     revalidatePath("/sot-job");
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal menyimpan mapping." };
+    return { ok: false, error: toPublicError(error, "Gagal menyimpan mapping.") };
   }
 }

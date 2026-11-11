@@ -57,6 +57,12 @@ Jendela Edge terbuka di komputer server. Login CompanyAccount disimpan di profil
 Jika login butuh input manual, biarkan `SOT_HEADLESS` kosong dan selesaikan login di jendela Edge.
 Proses berjalan di latar belakang dan bisa dibatalkan dari dialog.
 
+## Batasan deployment
+
+Aplikasi ini dirancang untuk satu proses server. Status proses sinkronisasi SOT disimpan di memori
+(`g.__sotRun`), sehingga tidak cocok untuk serverless atau beberapa instance tanpa mekanisme koordinasi
+tambahan. Microsoft Edge juga harus tersedia di mesin server yang menjalankan sinkronisasi.
+
 ## Prefix nama model SOT
 
 `lib/sot-prefix.ts` berisi aturan mengubah nama model SOT menjadi prefix (mis. `Linus2-FAL` menjadi `Linus`).

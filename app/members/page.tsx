@@ -53,10 +53,10 @@ export default function MembersPage() {
             Kenalan dengan team
           </span>
           <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-            Orang-orang di balik [Nama Team]
+            Orang-orang di balik team kami
           </h1>
           <p className="text-lg text-slate-600">
-            [Satu atau dua kalimat tentang misi dan cara kerja team.]
+            Team yang bekerja bersama untuk menyelesaikan pekerjaan dengan rapi dan terukur.
           </p>
         </div>
       </section>

@@ -3,7 +3,7 @@
 @theme inline {
   --color-brand: #2b4acb;
   --color-brand-soft: #e8f0fe;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
 }
 
 body {

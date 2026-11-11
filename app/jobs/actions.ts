@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createJob, deleteJob, updateJob, type JobInput } from "@/lib/jobs-repo";
 import { SOT_ERROR, isValidSotNo } from "@/lib/sot";
+import { toPublicError } from "@/lib/errors";
 
 export type FormState = { ok: boolean; error?: string };
 
@@ -12,8 +13,17 @@ function parseForm(formData: FormData): JobInput | string {
   const s = (key: string) => String(formData.get(key) ?? "").trim();
 
   const model = s("model");
+  const moduleName = s("module");
+  const stage = s("stage");
   const jobItem = s("jobItem");
   const assignee = s("assignee");
+  const detail = s("detail");
+  const remarks = s("remarks");
+  if (model.length > 200 || moduleName.length > 200 || stage.length > 200 || assignee.length > 200) {
+    return "Model, module, stage, dan PIC maksimal 200 karakter.";
+  }
+  if (jobItem.length > 500) return "Job item maksimal 500 karakter.";
+  if (detail.length > 5000 || remarks.length > 5000) return "Detail dan remarks maksimal 5000 karakter.";
   if (!model || !jobItem || !assignee) {
     return "Model, Job item, dan PIC wajib diisi.";
   }
@@ -37,12 +47,12 @@ function parseForm(formData: FormData): JobInput | string {
 
   return {
     model,
-    module: s("module"),
-    stage: s("stage"),
+    module: moduleName,
+    stage,
     jobItem,
     assignee,
-    detail: s("detail"),
-    remarks: s("remarks"),
+    detail,
+    remarks,
     sotNo,
     sotStatus: s("sotStatus"),
     progress: progressPct / 100,
@@ -60,7 +70,7 @@ export async function saveJobAction(_prev: FormState, formData: FormData): Promi
     if (id) updateJob(id, input);
     else createJob(input);
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal menyimpan job." };
+    return { ok: false, error: toPublicError(error, "Gagal menyimpan job.") };
   }
 
   revalidatePath("/", "layout");
@@ -72,7 +82,7 @@ export async function deleteJobAction(id: string): Promise<FormState> {
   try {
     deleteJob(id);
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal menghapus job." };
+    return { ok: false, error: toPublicError(error, "Gagal menghapus job.") };
   }
   revalidatePath("/", "layout");
   return { ok: true };

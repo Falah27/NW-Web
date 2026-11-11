@@ -8,13 +8,11 @@ import {
   type SotRunKind,
   type SotState,
 } from "@/lib/sot-projects-repo";
+import { toPublicError } from "@/lib/errors";
 
 export type SotActionResult = { ok: boolean; message?: string; error?: string };
 
-const fail = (error: unknown, fallback: string): SotActionResult => ({
-  ok: false,
-  error: error instanceof Error ? error.message : fallback,
-});
+const fail = (error: unknown, fallback: string): SotActionResult => ({ ok: false, error: toPublicError(error, fallback) });
 
 export async function startSotRunAction(kind: SotRunKind, fys: string[] = []): Promise<SotActionResult> {
   if (kind !== "projects" && kind !== "members") return { ok: false, error: "Jenis proses tidak dikenal." };

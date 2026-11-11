@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { importWorkbook } from "@/lib/xlsm-import";
+import { toPublicError } from "@/lib/errors";
 
 export type SyncState = { ok: boolean; message?: string; error?: string };
 
@@ -32,6 +33,6 @@ export async function syncExcelAction(_prev: SyncState, formData: FormData): Pro
       message: `${count} job diproses dari ${file.name}: ${added} ditambah, ${updated} diperbarui, ${deleted} dihapus, ${skippedLocal} dilewati karena diedit lokal (${archived} diarsipkan).`,
     };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal mengimpor file." };
+    return { ok: false, error: toPublicError(error, "Gagal mengimpor file.") };
   }
 }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createEvent, deleteEvent } from "@/lib/events-repo";
 import type { EventKind } from "@/lib/types";
+import { toPublicError } from "@/lib/errors";
 
 export type EventFormState = { ok: boolean; error?: string };
 
@@ -26,7 +27,7 @@ export async function saveEventAction(_prev: EventFormState, formData: FormData)
   try {
     createEvent({ title, kind, start, end });
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal menyimpan event." };
+    return { ok: false, error: toPublicError(error, "Gagal menyimpan event.") };
   }
   revalidatePath("/calendar");
   return { ok: true };
@@ -37,7 +38,7 @@ export async function deleteEventAction(id: string): Promise<EventFormState> {
   try {
     deleteEvent(id);
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Gagal menghapus event." };
+    return { ok: false, error: toPublicError(error, "Gagal menghapus event.") };
   }
   revalidatePath("/calendar");
   return { ok: true };
