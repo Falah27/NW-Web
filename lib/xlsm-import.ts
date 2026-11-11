@@ -149,12 +149,7 @@ export function parseWorkbook(buffer: Buffer, sheetName: string): { jobs: Parsed
   return { jobs };
 }
 
-function ensureMetaTable() {
-  getDb().exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-}
-
 export function getLastSync(): LastSync | null {
-  ensureMetaTable();
   const row = getDb().prepare("SELECT value FROM app_meta WHERE key = 'last_sync'").get() as
     | { value: string }
     | undefined;
@@ -169,7 +164,6 @@ export function getLastSync(): LastSync | null {
 export function importWorkbook(buffer: Buffer, fileName: string, sheetName: string): ImportResult {
   const { jobs } = parseWorkbook(buffer, sheetName);
 
-  ensureMetaTable();
   const db = getDb();
   const getOrCreate = (table: LookupTable, name: string | null, withEmployeeId?: string | null) => {
     if (!name) return null;

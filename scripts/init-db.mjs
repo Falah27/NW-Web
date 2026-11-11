@@ -1,140 +1,52 @@
-import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
+import { runMigrations } from "../lib/migrations.ts";
 import { jobs } from "../lib/mock-data.ts";
 import { members } from "../lib/mock-members.ts";
 
+const force = process.argv.includes("--force");
+const seedDemo = process.argv.includes("--seed-demo");
 const dir = path.join(process.cwd(), "data");
-fs.mkdirSync(dir, { recursive: true });
-const file = path.join(dir, "dev.db");
-fs.rmSync(file, { force: true });
+const file = path.resolve(process.env.DATABASE_PATH ?? path.join(dir, "dev.db"));
+
+fs.mkdirSync(path.dirname(file), { recursive: true });
+if (fs.existsSync(file) && !force) {
+  throw new Error(`Database already exists at ${file}. Use --force only if you intend to replace it.`);
+}
+if (force && fs.existsSync(file)) fs.rmSync(file);
 
 const db = new DatabaseSync(file);
-db.exec(`
-PRAGMA foreign_keys = ON;
+db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+runMigrations(db);
 
-CREATE TABLE members (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  employee_id TEXT UNIQUE,
-  role TEXT NOT NULL DEFAULT '',
-  skills TEXT NOT NULL DEFAULT '[]',
-  email TEXT
-);
-CREATE TABLE model_groups (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  section TEXT
-);
-CREATE TABLE modules (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE
-);
-CREATE TABLE stages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  sort_order INTEGER
-);
-CREATE TABLE jobs (
-  id TEXT PRIMARY KEY,
-  sot_no TEXT,
-  sot_status TEXT,
-  model_group_id INTEGER NOT NULL REFERENCES model_groups(id),
-  module_id INTEGER REFERENCES modules(id),
-  stage_id INTEGER REFERENCES stages(id),
-  job_item TEXT NOT NULL,
-  assignee_id INTEGER REFERENCES members(id),
-  detail_job TEXT,
-  remarks TEXT,
-  progress REAL NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 1),
-  start_date TEXT,
-  end_date TEXT,
-  is_archived INTEGER NOT NULL DEFAULT 0,
-  excel_row_key TEXT UNIQUE,
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  CHECK (end_date IS NULL OR start_date IS NULL OR end_date >= start_date)
-);
-CREATE INDEX jobs_filter_idx ON jobs (model_group_id, module_id, stage_id, assignee_id);
-CREATE INDEX jobs_dates_idx ON jobs (start_date, end_date);
-CREATE TABLE sot_projects (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  external_key TEXT NOT NULL UNIQUE,
-  fy TEXT NOT NULL,
-  project_name TEXT NOT NULL,
-  project_link TEXT NOT NULL,
-  is_active INTEGER NOT NULL DEFAULT 1,
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_seen_at TEXT
-);
-CREATE TABLE sot_project_members (
-  project_id INTEGER NOT NULL REFERENCES sot_projects(id) ON DELETE CASCADE,
-  source_name TEXT NOT NULL,
-  model_group_id INTEGER REFERENCES model_groups(id),
-  mapping_status TEXT NOT NULL CHECK (mapping_status IN ('matched', 'needs_mapping')),
-  PRIMARY KEY (project_id, source_name)
-);
-CREATE TABLE sot_sync_runs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  started_at TEXT NOT NULL,
-  finished_at TEXT,
-  status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed')),
-  project_count INTEGER NOT NULL DEFAULT 0,
-  member_count INTEGER NOT NULL DEFAULT 0,
-  error_message TEXT
-);
-CREATE TABLE model_prefixes (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  prefix TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE TABLE model_prefix_runs (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  built_at TEXT NOT NULL,
-  added INTEGER NOT NULL DEFAULT 0,
-  skipped INTEGER NOT NULL DEFAULT 0,
-  total INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE sot_model_mappings (
-  source_name TEXT PRIMARY KEY COLLATE NOCASE,
-  model_group_id INTEGER NOT NULL REFERENCES model_groups(id),
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-`);
-
-function idOf(table, name) {
-  if (!name) return null;
-  db.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).run(name);
-  return db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name).id;
+if (seedDemo) {
+  const idOf = (table, name) => {
+    if (!name) return null;
+    db.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).run(name);
+    return db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name).id;
+  };
+  db.exec("BEGIN");
+  try {
+    const insMember = db.prepare("INSERT OR IGNORE INTO members (name, role, skills, email) VALUES (?, ?, ?, ?)");
+    for (const member of members) insMember.run(member.name, member.role, JSON.stringify(member.skills), member.email ?? null);
+    const insJob = db.prepare(`
+      INSERT INTO jobs (id, sot_no, sot_status, model_group_id, module_id, stage_id, job_item, assignee_id, detail_job, remarks, progress, start_date, end_date, is_archived)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const job of jobs) {
+      insJob.run(
+        job.id, job.sotNo ?? null, job.sotStatus ?? null, idOf("model_groups", job.model),
+        idOf("modules", job.module), idOf("stages", job.stage), job.jobItem, idOf("members", job.assignee),
+        job.detail ?? null, job.remarks ?? null, job.progress, job.startDate, job.endDate, job.archived ? 1 : 0
+      );
+    }
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    throw error;
+  }
 }
 
-db.exec("BEGIN");
-try {
-  const insMember = db.prepare(
-    "INSERT OR IGNORE INTO members (name, role, skills, email) VALUES (?, ?, ?, ?)"
-  );
-  for (const m of members) {
-    insMember.run(m.name, m.role, JSON.stringify(m.skills), m.email ?? null);
-  }
-
-  const insJob = db.prepare(`
-    INSERT INTO jobs (id, sot_no, sot_status, model_group_id, module_id, stage_id,
-      job_item, assignee_id, detail_job, remarks, progress, start_date, end_date, is_archived)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  for (const j of jobs) {
-    insJob.run(
-      j.id, j.sotNo ?? null, j.sotStatus ?? null,
-      idOf("model_groups", j.model), idOf("modules", j.module), idOf("stages", j.stage),
-      j.jobItem, idOf("members", j.assignee),
-      j.detail ?? null, j.remarks ?? null, j.progress,
-      j.startDate, j.endDate, j.archived ? 1 : 0
-    );
-  }
-  db.exec("COMMIT");
-} catch (err) {
-  db.exec("ROLLBACK");
-  throw err;
-}
-
-console.log(`Selesai: ${jobs.length} job dan ${members.length} member masuk ke ${file}`);
+console.log(`Database siap di ${file}${seedDemo ? ` (${jobs.length} demo job, ${members.length} demo member)` : ""}.`);
+db.close();

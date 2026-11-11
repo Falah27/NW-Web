@@ -38,60 +38,6 @@ const SCRIPT_PATH = path.join(/* turbopackIgnore: true */ process.cwd(), "script
 // Satu proses sekaligus. Disimpan di globalThis supaya tidak hilang saat modul dimuat ulang (mode dev).
 const g = globalThis as unknown as { __sotRun?: { runId: number; child: ChildProcess; cancelled: boolean } };
 
-function addColumnIfMissing(table: string, column: string, ddl: string) {
-  const db = getDb();
-  const cols = db.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
-  if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
-}
-
-function ensureTables() {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS sot_projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      external_key TEXT NOT NULL UNIQUE,
-      fy TEXT NOT NULL,
-      project_name TEXT NOT NULL,
-      project_link TEXT NOT NULL,
-      is_active INTEGER NOT NULL DEFAULT 1,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      last_seen_at TEXT
-    );
-    CREATE TABLE IF NOT EXISTS sot_project_members (
-      project_id INTEGER NOT NULL REFERENCES sot_projects(id) ON DELETE CASCADE,
-      source_name TEXT NOT NULL,
-      model_group_id INTEGER REFERENCES model_groups(id),
-      mapping_status TEXT NOT NULL CHECK (mapping_status IN ('matched', 'needs_mapping')),
-      PRIMARY KEY (project_id, source_name)
-    );
-    CREATE TABLE IF NOT EXISTS sot_model_mappings (
-      source_name TEXT PRIMARY KEY COLLATE NOCASE,
-      model_group_id INTEGER NOT NULL REFERENCES model_groups(id),
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-    CREATE TABLE IF NOT EXISTS sot_sync_runs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      started_at TEXT NOT NULL,
-      finished_at TEXT,
-      status TEXT NOT NULL CHECK (status IN ('running', 'success', 'failed')),
-      project_count INTEGER NOT NULL DEFAULT 0,
-      member_count INTEGER NOT NULL DEFAULT 0,
-      error_message TEXT
-    );
-    CREATE TABLE IF NOT EXISTS sot_sync_logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      run_id INTEGER NOT NULL REFERENCES sot_sync_runs(id) ON DELETE CASCADE,
-      ts TEXT NOT NULL,
-      level TEXT NOT NULL,
-      message TEXT NOT NULL
-    );
-  `);
-  addColumnIfMissing("sot_sync_runs", "kind", "TEXT NOT NULL DEFAULT 'projects'");
-  addColumnIfMissing("sot_sync_runs", "detail", "TEXT");
-  // exact / base / prefix: cara model SOT dicocokkan dengan grup model (kosong = belum cocok)
-  addColumnIfMissing("sot_project_members", "mapping_method", "TEXT");
-}
-
 function addLog(runId: number, level: string, message: string) {
   getDb()
     .prepare("INSERT INTO sot_sync_logs (run_id, ts, level, message) VALUES (?, ?, ?, ?)")
@@ -186,7 +132,6 @@ function loadGroups(): NamedGroup[] {
 // Mapping manual dari halaman SOT Job. Harus dibaca setiap kali mencocokkan model,
 // kalau tidak pilihan pengguna tertimpa saat sinkron "Target model" berikutnya.
 function loadManualMappings(): ManualMappings {
-  ensureTables();
   const rows = getDb()
     .prepare("SELECT source_name, model_group_id FROM sot_model_mappings")
     .all() as unknown as { source_name: string; model_group_id: number }[];
@@ -255,7 +200,6 @@ function applyMembers(runId: number, items: MemberItem[]): { updated: number; me
 
 /** Mencoba lagi mencocokkan model yang masih needs_mapping (mis. setelah grup model baru diimpor). */
 export function remapNeedsMapping(): { matched: number; remaining: number } {
-  ensureTables();
   const db = getDb();
   const groups = loadGroups();
   const manual = loadManualMappings();
@@ -361,7 +305,6 @@ function watchChild(runId: number, kind: SotRunKind, child: ChildProcess) {
 
 /** Memulai pembacaan SOT di latar belakang. Mengembalikan id run; kemajuannya dibaca lewat getSotState(). */
 export function startSotRun(kind: SotRunKind, fys: string[] = []): number {
-  ensureTables();
   reconcileStaleRun();
   if (g.__sotRun) throw new Error("Masih ada proses SOT yang berjalan. Tunggu sampai selesai atau batalkan.");
   if (!PROJECTS_URL) throw new Error("SOT_PROJECTS_URL wajib diisi di .env.local. Lihat .env.example.");
@@ -428,13 +371,11 @@ export function cancelSotRun(): boolean {
 
 /** Prefix + pencocokan ulang model. Tidak butuh browser, jadi langsung selesai. */
 export function runPrefixAndMapping(): PrefixBuildResult & { matched: number; remaining: number } {
-  ensureTables();
   const prefix = buildModelPrefixes();
   return { ...prefix, ...remapNeedsMapping() };
 }
 
 export function getSotState(): SotState {
-  ensureTables();
   reconcileStaleRun();
   const db = getDb();
 
@@ -513,7 +454,6 @@ export function getSotState(): SotState {
 }
 
 export function getLastSotSync() {
-  ensureTables();
   return getDb()
     .prepare("SELECT started_at, finished_at, status, project_count, member_count, error_message FROM sot_sync_runs ORDER BY id DESC LIMIT 1")
     .get() as
