@@ -12,7 +12,6 @@ export interface SotJobProject {
   fy: string;
   projectName: string;
   projectLink: string;
-  isActive: boolean;
   updatedAt: string;
   targets: SotJobTarget[];
 }
@@ -47,8 +46,9 @@ export function getSotJobData(): SotJobData {
   ensureMappingMethodColumn();
   const projectRows = db
     .prepare(
-      `SELECT id, fy, project_name, project_link, is_active, updated_at
+      `SELECT id, fy, project_name, project_link, updated_at
        FROM sot_projects
+       WHERE is_active = 1
        ORDER BY fy DESC, project_name COLLATE NOCASE`
     )
     .all() as unknown as {
@@ -56,7 +56,6 @@ export function getSotJobData(): SotJobData {
     fy: string;
     project_name: string;
     project_link: string;
-    is_active: number;
     updated_at: string;
   }[];
   const memberRows = db
@@ -64,6 +63,7 @@ export function getSotJobData(): SotJobData {
       `SELECT m.project_id, m.source_name, m.mapping_status, m.mapping_method, mg.name AS group_name
        FROM sot_project_members m
        LEFT JOIN model_groups mg ON mg.id = m.model_group_id
+       WHERE m.project_id IN (SELECT id FROM sot_projects WHERE is_active = 1)
        ORDER BY m.project_id, m.source_name COLLATE NOCASE`
     )
     .all() as unknown as {
@@ -91,13 +91,11 @@ export function getSotJobData(): SotJobData {
     fy: row.fy,
     projectName: row.project_name,
     projectLink: row.project_link,
-    isActive: row.is_active === 1,
     updatedAt: row.updated_at,
     targets: targetsByProject.get(row.id) ?? [],
   }));
-  // Ringkasan hanya menghitung project aktif, supaya project yang sudah tidak masuk filter tidak ikut terhitung.
-  const activeProjects = projects.filter((project) => project.isActive);
-  const targets = activeProjects.flatMap((project) => project.targets);
+  // Project tidak aktif tidak diambil di atas. Barisnya tetap ada di database dan aktif lagi saat muncul di sinkron berikutnya.
+  const targets = projects.flatMap((project) => project.targets);
   const lastSync = db
     .prepare(
       `SELECT finished_at FROM sot_sync_runs
@@ -110,8 +108,8 @@ export function getSotJobData(): SotJobData {
     projects,
     lastSyncAt: lastSync?.finished_at ?? null,
     totals: {
-      projects: activeProjects.length,
-      fys: new Set(activeProjects.map((project) => project.fy)).size,
+      projects: projects.length,
+      fys: new Set(projects.map((project) => project.fy)).size,
       targets: targets.length,
       matched: targets.filter((target) => target.status === "matched").length,
       unmatched: targets.filter((target) => target.status === "needs_mapping").length,

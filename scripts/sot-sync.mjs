@@ -18,12 +18,14 @@ import {
   readProjectList,
   readTargetModels,
 } from "./sot/browser.mjs";
-import { narrowFysByIssues, projectKey } from "./sot/team-filter.mjs";
+import { narrowFysByIssues, projectKey, selectFys } from "./sot/team-filter.mjs";
 import { readIntEnv } from "./sot/retry.mjs";
 
 const TARGET_MODEL_LABEL = "対象機種";
-const issueTimeoutMs = readIntEnv(process.env.SOT_FETCH_TIMEOUT_MS, { def: 120_000, min: 10_000, max: 600_000 });
+const issueTimeoutMs = readIntEnv(process.env.SOT_ISSUE_TIMEOUT_MS || process.env.SOT_FETCH_TIMEOUT_MS, { def: 120_000, min: 10_000, max: 600_000 });
 const issueRetries = readIntEnv(process.env.SOT_FETCH_RETRIES, { def: 2, min: 0, max: 5 });
+const issueStatus = process.env.SOT_ISSUE_STATUS === "all" ? "all" : "open";
+const fyFrom = process.env.SOT_FY_FROM?.trim() || "";
 
 const emit = (obj) => process.stdout.write(JSON.stringify(obj) + "\n");
 const log = (level, message) => emit({ type: "log", level, message });
@@ -71,8 +73,11 @@ try {
     if (missing.length > 0) throw new Error(`FY tidak ditemukan di SOT: ${missing.join(", ")}. Data project tidak diubah.`);
     const selectedSet = new Set(selected);
     const chosen = allFys.filter((fy) => selectedSet.has(fy.label));
+    const fySelection = selectFys(chosen, fyFrom);
+    for (const skipped of fySelection.skipped) log("info", `${skipped.label} dilewati karena SOT_FY_FROM=${fyFrom}`);
+    if (fySelection.selected.length === 0) throw new Error(`Tidak ada FY yang memenuhi SOT_FY_FROM=${fyFrom}. Data project tidak diubah.`);
     const leader = { leaderField: input.teamLeaderField || "cf_3", leaderId: String(input.teamLeaderId || "") };
-    const found = await readIssueProjects(session, chosen, { ...leader, timeoutMs: issueTimeoutMs, retries: issueRetries }, (done, all, result) => {
+    const found = await readIssueProjects(session, fySelection.selected, { ...leader, status: issueStatus, timeoutMs: issueTimeoutMs, retries: issueRetries, stopOnFailure: true }, (done, all, result) => {
       const duration = result?.elapsedMs === undefined ? "" : `, ${(result.elapsedMs / 1000).toFixed(1)} dtk`;
       log("info", `Issue FY ${done} dari ${all} (${result?.fy ?? "-"}${duration})`);
     });

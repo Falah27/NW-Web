@@ -45,6 +45,8 @@ Langkah di dialog:
    dan project yang tidak lagi terlihat ditandai tidak aktif. Langkah ini juga mengaktifkan kembali project yang terlihat.
 2. **Saring Team Leader (opsional)**: jika `SOT_TEAM_LEADER_ID` valid, pilih FY yang ingin disaring.
    Hanya project pada FY terpilih tanpa issue Team Leader yang ditandai tidak aktif; FY lain tidak berubah.
+   Secara default hanya issue open yang dibaca (`SOT_ISSUE_STATUS=open`); gunakan `all` jika perlu semua status.
+   Pembacaan berjalan satu per satu, berhenti pada FY pertama yang gagal, dan dapat melewati FY lama dengan `SOT_FY_FROM`.
    Jika ada FY terpilih yang gagal dibaca atau hasilnya kosong, proses berhenti dan data lama tidak diubah.
 3. **Target model**: pilih FY, lalu target model tiap project dibaca. Hanya project yang berhasil
    dibaca yang ditimpa. Project tanpa field atau yang gagal dibaca tetap memakai data lama.
@@ -62,7 +64,7 @@ Proses berjalan di latar belakang dan bisa dibatalkan dari dialog.
 Pembacaan issue Team Leader berjalan satu FY per satu, dengan retry per FY dan pemutus berantai
 setelah tiga FY berturut-turut gagal. Atur nilainya di environment server bila diperlukan:
 
-- `SOT_FETCH_TIMEOUT_MS` (default `120000`, valid `10000`–`600000`)
+- `SOT_ISSUE_TIMEOUT_MS` (default `120000`, valid `10000`–`600000`; `SOT_FETCH_TIMEOUT_MS` lama tetap didukung sebagai fallback)
 - `SOT_FETCH_RETRIES` (default `2`, berarti maksimal tiga percobaan per FY; valid `0`–`5`)
 
 Jika masih ada FY gagal, sinkronisasi gagal-aman dan daftar project di database tidak diubah.

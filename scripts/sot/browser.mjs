@@ -336,7 +336,7 @@ export async function fetchIssueProjects({ jobs, concurrency, timeoutMs }) {
  * Baca issue Team Leader di tiap FY. Kalau sesi habis (login), login ulang dan ulangi kelompok itu satu kali.
  * Mengembalikan [{ fy, link, status, issues?, projects?, message? }] searah dengan `fys`.
  */
-export async function readIssueProjects(session, fys, { leaderField, leaderId, timeoutMs = 120_000, retries = 2 }, onProgress) {
+export async function readIssueProjects(session, fys, { leaderField, leaderId, status: issueStatus = "open", timeoutMs = 120_000, retries = 2, stopOnFailure = false }, onProgress) {
   const found = await readAllWithRetry({
     fys,
     retries,
@@ -347,7 +347,7 @@ export async function readIssueProjects(session, fys, { leaderField, leaderId, t
     readOne: async (fy) => {
       const run = () =>
         session.page.evaluate(fetchIssueProjects, {
-          jobs: [{ url: buildIssuesUrl(fy.link, { leaderField, leaderId }) }],
+          jobs: [{ url: buildIssuesUrl(fy.link, { leaderField, leaderId, status: issueStatus }) }],
           concurrency: ISSUE_CONCURRENCY,
           timeoutMs,
         });
@@ -360,6 +360,7 @@ export async function readIssueProjects(session, fys, { leaderField, leaderId, t
       }
       return status;
     },
+    maxConsecutiveFailures: stopOnFailure ? 1 : 3,
   });
   return found.map((result, index) => ({ ...result, link: fys[index]?.link ?? fys.find((fy) => fy.label === result.fy)?.link }));
 }

@@ -1,20 +1,26 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildIssuesUrl, narrowFysByIssues, projectKey } from "./sot/team-filter.mjs";
+import { buildIssuesUrl, narrowFysByIssues, projectKey, selectFys } from "./sot/team-filter.mjs";
 
 const BASE = "https://sot.example.net/redmine2/sot/projects/fy26";
 
-test("buildIssuesUrl: filter Team Leader, semua status, kolom Project, 100 per halaman", () => {
+test("buildIssuesUrl: filter Team Leader, status open default, kolom Project, 100 per halaman", () => {
   const url = new URL(buildIssuesUrl(BASE + "/", { leaderField: "cf_3", leaderId: "659" }));
   assert.equal(url.pathname, "/redmine2/sot/projects/fy26/issues");
   const p = url.searchParams;
   assert.equal(p.get("set_filter"), "1");
   assert.deepEqual(p.getAll("f[]"), ["status_id", "cf_3"]);
-  assert.equal(p.get("op[status_id]"), "*");
+  assert.equal(p.get("op[status_id]"), "o");
   assert.equal(p.get("op[cf_3]"), "=");
   assert.deepEqual(p.getAll("v[cf_3][]"), ["659"]);
   assert.deepEqual(p.getAll("c[]"), ["project"]);
   assert.equal(p.get("per_page"), "100");
+});
+
+test("buildIssuesUrl: status all memakai operator '*'", () => {
+  const url = new URL(buildIssuesUrl(BASE, { leaderId: "659", status: "all" }));
+  assert.equal(url.searchParams.get("op[status_id]"), "*");
+  assert.equal(url.searchParams.get("op[cf_3]"), "=");
 });
 
 test("buildIssuesUrl: query lama di link FY dibuang, field custom lain didukung", () => {
@@ -69,4 +75,14 @@ test("narrowFysByIssues: tanpa issue sama sekali -> kept 0 (pemanggil harus meno
   const r = narrowFysByIssues(fys, []);
   assert.equal(r.kept, 0);
   assert.deepEqual(r.fys, []);
+});
+
+test("selectFys: melewati FY lama dan mempertahankan label non-FY", () => {
+  const list = ["FY16", "FY23", "FY24", "FY26", "Archive"].map((label) => ({ label, link: `https://h/p/${label}` }));
+  const result = selectFys(list, 24);
+  assert.deepEqual(result.selected.map((fy) => fy.label), ["FY24", "FY26", "Archive"]);
+  assert.deepEqual(result.skipped.map((fy) => fy.label), ["FY16", "FY23"]);
+  assert.equal(selectFys(list).selected.length, 5);
+  assert.equal(selectFys(list, "").selected.length, 5);
+  assert.equal(selectFys(list, null).skipped.length, 0);
 });

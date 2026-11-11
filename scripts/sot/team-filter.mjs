@@ -9,11 +9,12 @@ export function projectKey(link) {
 }
 
 /**
- * URL daftar issue sebuah FY: semua status, Team Leader (custom field) sama dengan leaderId,
- * dengan kolom Project supaya kita tahu issue itu milik project yang mana.
+ * URL daftar issue sebuah FY: Team Leader (custom field) sama dengan leaderId, dengan kolom Project
+ * supaya kita tahu issue itu milik project yang mana.
+ * status "open" (default) mengikuti tampilan SOT dan lebih ringan; "all" membaca semua status.
  * Nomor halaman ditambahkan oleh pembaca (parameter `page`).
  */
-export function buildIssuesUrl(fyLink, { leaderField = "cf_3", leaderId }) {
+export function buildIssuesUrl(fyLink, { leaderField = "cf_3", leaderId, status = "open" }) {
   const url = new URL(fyLink);
   url.pathname = url.pathname.replace(/\/+$/, "") + "/issues";
   url.search = "";
@@ -22,7 +23,7 @@ export function buildIssuesUrl(fyLink, { leaderField = "cf_3", leaderId }) {
   p.set("set_filter", "1");
   p.set("sort", "id:desc");
   p.append("f[]", "status_id");
-  p.append("op[status_id]", "*"); // semua status: project yang issue-nya sudah closed tetap ikut
+  p.append("op[status_id]", status === "all" ? "*" : "o");
   p.append("f[]", leaderField);
   p.append(`op[${leaderField}]`, "=");
   p.append(`v[${leaderField}][]`, String(leaderId));
@@ -56,6 +57,20 @@ export function narrowFysByIssues(fys, issueProjects) {
     kept += projects.length;
     if (projects.length > 0) narrowed.push({ ...fy, projects });
   }
+
   const unmatched = [...wanted].filter(([key]) => !known.has(key) && !fyKeys.has(key)).map(([, name]) => name);
   return { fys: narrowed, kept, total, unmatched };
+}
+
+export function selectFys(fys, minFy) {
+  const min = minFy === undefined || minFy === null || minFy === "" ? NaN : Number(minFy);
+  if (!Number.isFinite(min)) return { selected: fys, skipped: [] };
+  const selected = [];
+  const skipped = [];
+  for (const fy of fys) {
+    const match = /^FY\s*(\d+)$/i.exec(String(fy.label).trim());
+    if (match && Number(match[1]) < min) skipped.push(fy);
+    else selected.push(fy);
+  }
+  return { selected, skipped };
 }

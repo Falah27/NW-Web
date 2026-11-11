@@ -107,13 +107,11 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
   const [query, setQuery] = useState("");
   const [fy, setFy] = useState(ALL);
   const [mapping, setMapping] = useState(ALL);
-  const [activeOnly, setActiveOnly] = useState(true);
   const [selectedProject, setSelectedProject] = useState<SotJobProject | null>(null);
   const fys = useMemo(() => [...new Set(projects.map((project) => project.fy))], [projects]);
   const filtered = useMemo(
     () =>
       projects.filter((project) => {
-        if (activeOnly && !project.isActive) return false;
         if (fy !== ALL && project.fy !== fy) return false;
         const text = `${project.projectName} ${project.fy} ${project.targets.map((target) => `${target.sourceName} ${target.groupName ?? ""}`).join(" ")}`.toLowerCase();
         if (query && !text.includes(query.toLowerCase())) return false;
@@ -122,7 +120,7 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
         if (mapping === "empty" && project.targets.length > 0) return false;
         return true;
       }),
-    [activeOnly, fy, mapping, projects, query]
+    [fy, mapping, projects, query]
   );
 
   return (
@@ -149,10 +147,6 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
               <option value="empty">Belum ada target</option>
             </select>
           </label>
-          <label className="flex h-10 items-center gap-2 text-sm">
-            <input type="checkbox" checked={activeOnly} onChange={(event) => setActiveOnly(event.target.checked)} className="h-4 w-4" />
-            Project aktif saja
-          </label>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-sm">
@@ -171,7 +165,7 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
                     <td className="px-4 py-4"><a href={project.projectLink} target="_blank" rel="noreferrer" className="font-semibold text-brand hover:underline">{project.projectName} ↗</a><div className="mt-1 text-xs text-slate-400">Diperbarui {formatDate(project.updatedAt)}</div></td>
                     <td className="px-4 py-4">{project.targets.length === 0 ? <span className="text-slate-400">Belum ada target model</span> : <div className="flex flex-wrap gap-1.5">{project.targets.map((target) => <span key={target.sourceName} className="rounded-md bg-slate-100 px-2 py-1 text-xs">{target.sourceName}</span>)}</div>}</td>
                     <td className="px-4 py-4">{project.targets.length === 0 ? "-" : <div className="flex flex-col gap-1 text-xs">{project.targets.map((target) => <span key={`${target.sourceName}-mapping`} className={target.status === "matched" ? "text-emerald-700" : "text-amber-700"}>{target.groupName ?? "Belum cocok"}{target.method && target.method !== "exact" ? ` (${target.method})` : ""}</span>)}</div>}</td>
-                    <td className="px-4 py-4">{!project.isActive ? <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-500">Tidak aktif</span> : project.targets.length === 0 ? <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">Tanpa target</span> : unmatched > 0 ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">{unmatched} belum cocok</span> : <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Cocok</span>}</td>
+                    <td className="px-4 py-4">{project.targets.length === 0 ? <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">Tanpa target</span> : unmatched > 0 ? <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-800">{unmatched} belum cocok</span> : <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-800">Cocok</span>}</td>
                     <td className="px-4 py-4">
                       <button
                         type="button"
