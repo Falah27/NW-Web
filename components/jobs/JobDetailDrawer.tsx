@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { Job, JobStatus } from "@/lib/types";
 import { diffDaysISO } from "@/lib/date";
@@ -202,7 +203,7 @@ export default function JobDetailDrawer({
     };
   }, [job, onClose]);
 
-  if (!job) return null;
+  if (!job || typeof document === "undefined") return null;
 
   const t = theme[job.status];
   const pct = Math.round(job.progress * 100);
@@ -233,7 +234,7 @@ export default function JobDetailDrawer({
       ]
     : [];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
       <aside
@@ -354,6 +355,7 @@ export default function JobDetailDrawer({
 
         <Footer key={job.id} job={job} onClose={onClose} onEdit={onEdit} onDelete={onDelete} />
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }

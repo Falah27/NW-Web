@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import type { EventKind, JobStatus, TeamEvent } from "@/lib/types";
 import StatusBadge from "@/components/StatusBadge";
 import ProgressBar from "@/components/ProgressBar";
@@ -57,13 +58,13 @@ export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent,
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, onClose]);
 
-  if (!selected) return null;
+  if (!selected || typeof document === "undefined") return null;
 
   const isJob = selected.type === "job";
   const title = isJob ? selected.job.jobItem : selected.event.title;
   const model = isJob ? selected.job.model : KIND_LABEL[selected.event.kind];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-end p-0 sm:p-3">
       <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]" onClick={onClose} aria-hidden="true" />
       <aside role="dialog" aria-modal="true" aria-label="Detail kalender" className="relative flex h-full w-full max-w-[420px] flex-col overflow-y-auto rounded-none bg-white shadow-2xl sm:max-h-[calc(100vh-1.5rem)] sm:rounded-2xl">
@@ -123,6 +124,7 @@ export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent,
           </div>
         )}
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }

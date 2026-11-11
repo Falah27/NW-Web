@@ -1,6 +1,7 @@
 "use client";
 
 import { startTransition, useActionState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { saveEventAction, type EventFormState } from "@/app/calendar/actions";
 
 const initialState: EventFormState = { ok: false };
@@ -27,7 +28,9 @@ export default function EventFormDrawer({ defaultDate, onClose }: { defaultDate?
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
       <aside role="dialog" aria-modal="true" aria-label="Tambah event" className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-6 shadow-xl">
@@ -50,6 +53,7 @@ export default function EventFormDrawer({ defaultDate, onClose }: { defaultDate?
           </div>
         </form>
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }

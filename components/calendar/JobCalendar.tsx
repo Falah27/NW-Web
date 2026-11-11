@@ -200,7 +200,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
   const selectClass = "h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900";
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-drawer-open={selected || eventForm ? "true" : "false"}>
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
         <div className="flex flex-wrap items-center gap-2">
           <select aria-label="Filter model" value={model} onChange={(event) => setModel(event.target.value)} className={selectClass}>
@@ -241,6 +241,12 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
           fixedWeekCount={false}
           events={calendarEvents}
           eventClick={onEventClick}
+          eventClassNames={(arg) => {
+            const selectedId =
+              selected?.type === "job" ? `job-${selected.job.id}` :
+              selected?.type === "event" ? `ev-${selected.event.id}` : null;
+            return arg.event.id === selectedId ? ["fc-event-selected"] : [];
+          }}
           dateClick={(arg) => setEventForm({ date: arg.dateStr })}
           dayMaxEvents={3}
           moreLinkClick="popover"

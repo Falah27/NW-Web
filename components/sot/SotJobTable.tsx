@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { saveSotManualMappingAction } from "@/app/sot-job/actions";
 import type { SotJobModelGroup, SotJobProject } from "@/lib/sot-job-repo";
@@ -41,7 +42,9 @@ function ProjectDrawer({
     });
   }
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30" onClick={onClose}>
       <aside
         role="dialog"
@@ -95,7 +98,8 @@ function ProjectDrawer({
           )}
         </section>
       </aside>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -122,7 +126,7 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
   );
 
   return (
-    <>
+    <div data-drawer-open={selectedProject ? "true" : "false"}>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 p-4">
           <label className="min-w-[220px] flex-1 text-xs font-semibold text-slate-600">
@@ -157,7 +161,12 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
               {filtered.map((project) => {
                 const unmatched = project.targets.filter((target) => target.status === "needs_mapping").length;
                 return (
-                  <tr key={project.id} className="border-t border-slate-100 align-top hover:bg-slate-50">
+                  <tr
+                    key={project.id}
+                    className={`border-t border-slate-100 align-top transition-colors hover:bg-slate-50 ${
+                      selectedProject?.id === project.id ? "bg-brand-soft shadow-[inset_4px_0_0_#2b4acb]" : ""
+                    }`}
+                  >
                     <td className="px-4 py-4 font-semibold text-slate-600">{project.fy}</td>
                     <td className="px-4 py-4"><a href={project.projectLink} target="_blank" rel="noreferrer" className="font-semibold text-brand hover:underline">{project.projectName} ↗</a><div className="mt-1 text-xs text-slate-400">Diperbarui {formatDate(project.updatedAt)}</div></td>
                     <td className="px-4 py-4">{project.targets.length === 0 ? <span className="text-slate-400">Belum ada target model</span> : <div className="flex flex-wrap gap-1.5">{project.targets.map((target) => <span key={target.sourceName} className="rounded-md bg-slate-100 px-2 py-1 text-xs">{target.sourceName}</span>)}</div>}</td>
@@ -181,6 +190,6 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
         </div>
       </section>
       {selectedProject && <ProjectDrawer project={selectedProject} modelGroups={modelGroups} onClose={() => setSelectedProject(null)} />}
-    </>
+    </div>
   );
 }

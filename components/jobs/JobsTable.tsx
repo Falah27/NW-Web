@@ -123,7 +123,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
   ];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5" data-drawer-open={selected ? "true" : "false"}>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -192,7 +192,13 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
               </tr>
             )}
             {grouped.map(([modelName, rows]) => (
-              <GroupRows key={modelName} modelName={modelName} rows={rows} onSelect={setSelected} />
+              <GroupRows
+                key={modelName}
+                modelName={modelName}
+                rows={rows}
+                selectedId={selected?.id ?? null}
+                onSelect={setSelected}
+              />
             ))}
           </tbody>
         </table>
@@ -228,10 +234,12 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
 function GroupRows({
   modelName,
   rows,
+  selectedId,
   onSelect,
 }: {
   modelName: string;
   rows: (Job & { status: JobStatus })[];
+  selectedId: string | null;
   onSelect: (job: Job & { status: JobStatus }) => void;
 }) {
   return (
@@ -245,7 +253,10 @@ function GroupRows({
         <tr
           key={j.id}
           onClick={() => onSelect(j)}
-          className="cursor-pointer border-t border-slate-200 align-top hover:bg-slate-50"
+          aria-current={selectedId === j.id ? "true" : undefined}
+          className={`cursor-pointer border-t border-slate-200 align-top transition-colors hover:bg-slate-50 ${
+            selectedId === j.id ? "bg-brand-soft shadow-[inset_4px_0_0_#2b4acb]" : ""
+          }`}
         >
           <td className="px-4 py-3.5">
             <button type="button" className="text-left font-semibold hover:text-brand">
