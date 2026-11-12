@@ -154,8 +154,8 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
             </select>
           </label>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+        <div className="max-h-[58vh] overflow-auto">
+          <table className="data-table w-full min-w-[900px] border-collapse text-sm">
             <thead><tr className="bg-slate-100 text-left text-xs text-slate-500"><th className="px-4 py-3 font-semibold">FY</th><th className="px-4 py-3 font-semibold">Project</th><th className="px-4 py-3 font-semibold">Target model</th><th className="px-4 py-3 font-semibold">Mapping</th><th className="px-4 py-3 font-semibold">Status</th><th className="px-4 py-3 font-semibold">Aksi</th></tr></thead>
             <tbody>
               {filtered.map((project) => {

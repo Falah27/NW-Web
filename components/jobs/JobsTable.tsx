@@ -172,8 +172,8 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[820px] border-collapse text-sm">
+      <div className="max-h-[58vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="data-table w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs text-slate-500">
               <th className="px-4 py-3 font-semibold">Job</th>

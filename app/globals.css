@@ -11,6 +11,26 @@ body {
   color: #0f172a;
 }
 
+.data-table {
+  border: 1px solid #e2e8f0;
+}
+
+.data-table th,
+.data-table td {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f1f5f9;
+}
+
 .site-shell {
   min-height: 100vh;
   transition: transform 0.28s ease-out;

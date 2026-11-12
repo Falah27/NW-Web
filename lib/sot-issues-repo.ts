@@ -57,6 +57,21 @@ function translateLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  "\u5bfe\u8c61\u6a5f\u7a2e": "Target Model",
+  "[\u69cb\u60f3\u8a2d\u8a08]\u5b8c\u4e86\u4e88\u5b9a\u65e5": "[Concept Design] Planned Completion Date",
+  "[\u69cb\u60f3\u8a2d\u8a08(\u7dcf\u5408\u30c6\u30b9\u30c8)]\u5b8c\u4e86\u4e88\u5b9a\u65e5": "[Concept Design (Integration Test)] Planned Completion Date",
+  "[\u8a73\u7d30\u8a2d\u8a08]\u5b8c\u4e86\u4e88\u5b9a\u65e5": "[Detailed Design] Planned Completion Date",
+  "[\u5b9f\u88c5]\u5b8c\u4e86\u4e88\u5b9a\u65e5": "[Implementation] Planned Completion Date",
+  "[\u5358\u4f53\u30c6\u30b9\u30c8]\u5b8c\u4e86\u4e88\u5b9a\u65e5": "[Unit Test] Planned Completion Date",
+  "[\u7dcf\u5408\u30c6\u30b9\u30c8]\u5b8c\u4e86\u4e88\u5b9a\u65e5": "[Integration Test] Planned Completion Date",
+  "\u898b\u7a4d\u3082\u308a\u5de5\u6570(\u4eba\u65e5)": "Estimated Effort (Person-Days)",
+};
+
+function translateFieldLabel(value: string): string {
+  return FIELD_LABELS[value] ?? value;
+}
+
 const COMPLETION_FIELD_BY_STATUS: Record<string, string> = {
   "Concept Design": "6",
   "Concept Design (Integration Test)": "9",
@@ -286,7 +301,7 @@ export function getSotIssueData(): SotIssueData {
         fields,
       };
     }),
-    columns: fieldIds.map((id) => ({ id: String(id), label: fieldNames[String(id)] ?? `CF_${id}` })),
+    columns: fieldIds.map((id) => ({ id: String(id), label: translateFieldLabel(fieldNames[String(id)] ?? `CF_${id}`) })),
     issueBaseUrl: getMeta("base_url"),
     filterSummary: getMeta("filter_summary"),
     lastSyncAt: getMeta("synced_at"),

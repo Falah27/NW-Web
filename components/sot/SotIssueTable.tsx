@@ -13,12 +13,12 @@ const JUDGEMENTS: { value: SotIssueRow["judgement"]; label: string }[] = [
   { value: "unknown", label: "Unknown" },
 ];
 
-const SUMMARY_CARDS: { value: SotIssueRow["judgement"] | typeof ALL; label: string; note: string }[] = [
-  { value: ALL, label: "Total Issue", note: "semua issue" },
-  { value: "on_schedule", label: "On Schedule", note: "belum terlambat" },
-  { value: "due_today", label: "Due Today", note: "jatuh tempo hari ini" },
-  { value: "late", label: "Late", note: "melewati completion date" },
-  { value: "completed", label: "Completed", note: "sudah selesai" },
+const SUMMARY_CARDS: { value: SotIssueRow["judgement"] | typeof ALL; label: string }[] = [
+  { value: ALL, label: "Total Issue" },
+  { value: "on_schedule", label: "On Schedule" },
+  { value: "due_today", label: "Due Today" },
+  { value: "late", label: "Late" },
+  { value: "completed", label: "Completed" },
 ];
 
 function distinct(values: string[]): string[] {
@@ -117,7 +117,6 @@ export default function SotIssueTable({
             >
               <div className="text-sm font-medium text-slate-500">{card.label}</div>
               <div className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{count}</div>
-              <div className="mt-0.5 text-xs text-slate-500">{card.note}</div>
             </button>
           );
         })}
@@ -165,7 +164,7 @@ export default function SotIssueTable({
       </div>
 
       <div className="max-h-[62vh] min-h-[240px] overflow-auto">
-        <table className="min-w-[1100px] w-full border-collapse text-sm">
+        <table className="data-table min-w-[1100px] w-full border-collapse text-sm">
           <thead className="text-left text-xs text-slate-500">
             <tr className="bg-slate-100 text-left text-xs text-slate-500">
               <th className={th}>ID</th>

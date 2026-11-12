@@ -16,7 +16,7 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <header className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-8">
+    <header className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
       <Link href="/jobs" className="text-xl font-bold tracking-tight">
         team<span className="ml-0.5 rounded-md bg-brand px-2 text-white">hub</span>
       </Link>
