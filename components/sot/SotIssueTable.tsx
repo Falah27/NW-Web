@@ -61,6 +61,9 @@ export default function SotIssueTable({
     () => columns.find((column) => column.id === "1" || column.label === "対象機種")?.id ?? "1",
     [columns]
   );
+  const modelColumn = columns.find((column) => column.id === modelFieldId);
+  const effortColumn = columns.find((column) => column.id === "5");
+  const remainingColumns = columns.filter((column) => column.id !== modelFieldId && column.id !== "5");
   const models = useMemo(() => distinct(issues.map((issue) => issue.fields[modelFieldId] ?? "")), [issues, modelFieldId]);
   const judgementCounts = useMemo(
     () => issues.reduce<Record<string, number>>((counts, issue) => ({ ...counts, [issue.judgement]: (counts[issue.judgement] ?? 0) + 1 }), {}),
@@ -89,8 +92,9 @@ export default function SotIssueTable({
   const firstShown = filtered.length === 0 ? 0 : (activePage - 1) * PAGE + 1;
   const lastShown = Math.min(activePage * PAGE, filtered.length);
   const select = "mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15";
-  const th = "sticky top-0 z-10 whitespace-nowrap border-b border-slate-200 bg-slate-100 px-3 py-3 font-semibold shadow-[0_1px_0_rgba(226,232,240,0.8)]";
-  const td = "px-3 py-2.5 align-top";
+  const th = "sticky top-0 z-20 whitespace-normal break-words border-b border-slate-200 bg-slate-100 px-3 py-3 text-xs leading-4 font-semibold shadow-[0_1px_0_rgba(226,232,240,0.8)]";
+  const td = "break-words whitespace-normal bg-white px-3 py-2.5 align-top";
+  const effortHeader = effortColumn?.id === "5" ? "Man/day" : effortColumn?.label ?? "Man/day";
 
   function reset<T>(setter: (v: T) => void) {
     return (value: T) => {
@@ -164,19 +168,36 @@ export default function SotIssueTable({
       </div>
 
       <div className="max-h-[62vh] min-h-[240px] overflow-auto">
-        <table className="data-table min-w-[1100px] w-full border-collapse text-sm">
+        <div className="p-3">
+        <table className="data-table min-w-[1800px] w-max table-fixed border-separate border-spacing-0 text-sm">
+          <colgroup>
+            <col className="w-[60px]" />
+            <col className="w-[90px]" />
+            <col className="w-[160px]" />
+            <col className="w-[300px]" />
+            <col className="w-[190px]" />
+            <col className="w-[150px]" />
+            <col className="w-[80px]" />
+            <col className="w-[120px]" />
+            <col className="w-[120px]" />
+            <col className="w-[110px]" />
+            <col className="w-[120px]" />
+            {remainingColumns.map((column) => <col key={column.id} className="w-[200px]" />)}
+          </colgroup>
           <thead className="text-left text-xs text-slate-500">
             <tr className="bg-slate-100 text-left text-xs text-slate-500">
-              <th className={th}>ID</th>
-              <th className={th}>Tracker</th>
-              <th className={th}>Status</th>
-              <th className={`${th} min-w-[320px] max-w-[460px]`}>Subject</th>
-              <th className={`${th} min-w-[210px]`}>Assigned To</th>
-              <th className={th}>Updated On</th>
-              <th className={th}>Completion Date</th>
-              <th className={th}>Judgement</th>
-              <th className={th}>Fixed Version</th>
-              {columns.map((c) => <th key={c.id} className={th} title={`Custom field ${c.id}`}>{c.label}</th>)}
+              <th className={`${th} w-[60px]`}>ID</th>
+              <th className={`${th} w-[90px]`}>Tracker</th>
+              <th className={`${th} w-[110px]`}>Status</th>
+              <th className={`${th} w-[240px]`}>Subject</th>
+              <th className={`${th} w-[190px]`}>Assigned To</th>
+              <th className={`${th} w-[150px]`}>{modelColumn?.label ?? "Target Model"}</th>
+              <th className={`${th} w-[80px]`}>{effortHeader}</th>
+              <th className={`${th} w-[120px]`}>Judgement</th>
+              <th className={`${th} w-[120px]`}>Fixed Version</th>
+              <th className={`${th} w-[110px]`}>Updated On</th>
+              <th className={`${th} w-[120px]`}>Completion Date</th>
+              {remainingColumns.map((c) => <th key={c.id} className={`${th} w-[150px]`} title={`Custom field ${c.id}`}>{c.label}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -191,19 +212,21 @@ export default function SotIssueTable({
                     issue.id
                   )}
                 </td>
-                <td className={`${td} whitespace-nowrap`}>{issue.tracker}</td>
-                <td className={`${td} whitespace-nowrap`}>{issue.status}</td>
-                <td className={`${td} max-w-[460px] whitespace-normal leading-5`}>{issue.subject}</td>
-                <td className={`${td} whitespace-nowrap`}>{issue.assignedTo || "-"}</td>
-                <td className={`${td} whitespace-nowrap`}>{issue.updatedLabel}</td>
-                <td className={`${td} whitespace-nowrap`}>{issue.completionDate || "-"}</td>
+                <td className={td}>{issue.tracker}</td>
+                <td className={td}>{issue.status}</td>
+                <td className={`${td} leading-5`}>{issue.subject}</td>
+                <td className={td}>{issue.assignedTo || "-"}</td>
+                <td className={td}>{issue.fields[modelFieldId] || "-"}</td>
+                <td className={td}>{issue.fields[effortColumn?.id ?? "5"] || "-"}</td>
                 <td className={td}>
                   <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-1 text-xs font-semibold ${judgementClass(issue.judgement)}`}>
                     {judgementLabel(issue.judgement)}
                   </span>
                 </td>
-                <td className={`${td} whitespace-nowrap`}>{issue.fixedVersion || "-"}</td>
-                {columns.map((c) => <td key={c.id} className={td}>{issue.fields[c.id] || "-"}</td>)}
+                <td className={td}>{issue.fixedVersion || "-"}</td>
+                <td className={td}>{issue.updatedLabel}</td>
+                <td className={td}>{issue.completionDate || "-"}</td>
+                {remainingColumns.map((c) => <td key={c.id} className={td}>{issue.fields[c.id] || "-"}</td>)}
               </tr>
             ))}
             {shown.length === 0 && (
@@ -215,6 +238,7 @@ export default function SotIssueTable({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
