@@ -122,25 +122,31 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
       }),
     [fy, mapping, projects, query]
   );
+  const controlClass = "mt-1 h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15";
 
   return (
     <div data-drawer-open={selectedProject ? "true" : "false"}>
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 p-4">
-          <label className="min-w-[220px] flex-1 text-xs font-semibold text-slate-600">
+        <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
+          <label className="min-w-[250px] flex-[1.5] text-xs font-semibold text-slate-600">
             Cari project atau model
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nama project atau target model" className="mt-1 h-10 w-full rounded-lg border border-slate-300 px-3 text-sm font-normal" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Nama project atau target model"
+              className={controlClass}
+            />
           </label>
-          <label className="text-xs font-semibold text-slate-600">
+          <label className="w-full text-xs font-semibold text-slate-600 sm:w-32">
             FY
-            <select value={fy} onChange={(event) => setFy(event.target.value)} className="mt-1 h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal">
+            <select value={fy} onChange={(event) => setFy(event.target.value)} className={controlClass}>
               <option value={ALL}>Semua FY</option>
               {fys.map((value) => <option key={value} value={value}>{value}</option>)}
             </select>
           </label>
-          <label className="text-xs font-semibold text-slate-600">
+          <label className="w-full text-xs font-semibold text-slate-600 sm:min-w-52 sm:flex-1">
             Mapping
-            <select value={mapping} onChange={(event) => setMapping(event.target.value)} className="mt-1 h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal">
+            <select value={mapping} onChange={(event) => setMapping(event.target.value)} className={controlClass}>
               <option value={ALL}>Semua status</option>
               <option value="matched">Semua cocok</option>
               <option value="unmatched">Ada belum cocok</option>

@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { fetchAllIssues, parseFieldIds, parseQuery, SotApiError, type SotApiConfig } from "./sot-issues-api";
+import { mapSotModelValue, readSotModelMap } from "./sot-model-map";
 
 // Job/issue SOT yang dibaca langsung lewat REST API sesuai filter di .env.local, disimpan sebagai salinan
 // lokal (cache). Salinan hanya diganti kalau SEMUA halaman berhasil dibaca; kalau gagal, data lama utuh.
@@ -33,6 +34,26 @@ export interface SotIssueData {
 }
 
 const globalForSync = globalThis as unknown as { __sotIssueSync?: boolean };
+
+const STATUS_LABELS: Record<string, string> = {
+  実装: "Implementation",
+  構想設計: "Concept Design",
+  "構想設計(総合テスト)": "Concept Design (Integration Test)",
+  "構想設計(総合テスト) - 承認待ち": "Concept Design (Integration Test) - Pending Approval",
+  総合テスト: "Integration Test",
+  詳細設計: "Detailed Design",
+};
+
+const TRACKER_LABELS: Record<string, string> = {
+  "Beta前テスト": "Pre-Beta Test",
+  "FC前テスト": "Pre-FC Test",
+  要件: "Requirement",
+  要求: "Request",
+};
+
+function translateLabel(value: string, labels: Record<string, string>): string {
+  return labels[value] ?? value;
+}
 
 function ensureTables() {
   getDb().exec(`
@@ -198,20 +219,26 @@ export function getSotIssueData(): SotIssueData {
 
   const fieldIds = parseJson<number[]>(getMeta("field_ids"), []);
   const fieldNames = parseJson<Record<string, string>>(getMeta("field_names"), {});
+  const modelMap = readSotModelMap();
+  const modelFieldId = process.env.SOT_MODEL_FIELD_ID?.trim() || "1";
   const { config, problem } = readSotIssueConfig();
 
   return {
     issues: rows.map((row) => ({
       id: row.id,
-      tracker: row.tracker,
-      status: row.status,
+      tracker: translateLabel(row.tracker, TRACKER_LABELS),
+      status: translateLabel(row.status, STATUS_LABELS),
       subject: row.subject,
       assignedTo: row.assigned_to,
       updatedOn: row.updated_on,
       updatedLabel: formatDate(row.updated_on),
       fixedVersion: row.fixed_version,
       project: row.project,
-      fields: parseJson<Record<string, string>>(row.fields_json, {}),
+      fields: (() => {
+        const fields = parseJson<Record<string, string>>(row.fields_json, {});
+        if (fields[modelFieldId]) fields[modelFieldId] = mapSotModelValue(fields[modelFieldId], modelMap);
+        return fields;
+      })(),
     })),
     columns: fieldIds.map((id) => ({ id: String(id), label: fieldNames[String(id)] ?? `CF_${id}` })),
     issueBaseUrl: getMeta("base_url"),

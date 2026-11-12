@@ -13,8 +13,12 @@ async function SotIssueContent() {
     : null;
 
   return (
-    <>
-      <div className="flex justify-end">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">SOT Issue</h1>
+          <p className="mt-1 text-slate-600">Job SOT yang dibaca langsung dari SOT sesuai filter di konfigurasi.</p>
+        </div>
         <SotIssueSyncButton disabled={!data.canSync} />
       </div>
       {data.configProblem && (
@@ -29,20 +33,14 @@ async function SotIssueContent() {
         {data.filterSummary ? ` · Filter: ${data.filterSummary}` : ""}
       </p>
       <SotIssueTable issues={data.issues} columns={data.columns} issueBaseUrl={data.issueBaseUrl} />
-    </>
+    </div>
   );
 }
 
 export default function SotIssuesPage() {
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">SOT Issue</h1>
-        <p className="mt-1 text-slate-600">Job SOT yang dibaca langsung dari SOT sesuai filter di konfigurasi.</p>
-      </div>
-      <Suspense fallback={<p className="py-10 text-center text-slate-500">Memuat data SOT...</p>}>
-        <SotIssueContent />
-      </Suspense>
-    </div>
+    <Suspense fallback={<p className="py-10 text-center text-slate-500">Memuat data SOT...</p>}>
+      <SotIssueContent />
+    </Suspense>
   );
 }
