@@ -18,6 +18,8 @@ export interface SotIssueRow {
   assignedTo: string;
   updatedOn: string;
   updatedLabel: string;
+  completionDate: string | null;
+  judgement: "late" | "due_today" | "on_schedule" | "completed" | "unknown";
   fixedVersion: string;
   project: string;
   fields: Record<string, string>;
@@ -53,6 +55,45 @@ const TRACKER_LABELS: Record<string, string> = {
 
 function translateLabel(value: string, labels: Record<string, string>): string {
   return labels[value] ?? value;
+}
+
+const COMPLETION_FIELD_BY_STATUS: Record<string, string> = {
+  "Concept Design": "6",
+  "Concept Design (Integration Test)": "9",
+  "Detailed Design": "12",
+  "Implementation": "18",
+  "Unit Test": "21",
+  "Integration Test": "24",
+};
+
+function todayInJakarta(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function normalizeDate(value: string | undefined): string | null {
+  const date = value?.trim().slice(0, 10) ?? "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+function getCompletionDate(status: string, fields: Record<string, string>): string | null {
+  const baseStatus = status.replace(/\s*-\s*Pending Approval\s*$/i, "").trim();
+  const fieldId = COMPLETION_FIELD_BY_STATUS[baseStatus];
+  return fieldId ? normalizeDate(fields[fieldId]) : null;
+}
+
+function judgeCompletionDate(status: string, completionDate: string | null, today: string): SotIssueRow["judgement"] {
+  if (/^(Finish|Completed|完了)$/i.test(status.trim())) return "completed";
+  if (!completionDate) return "unknown";
+  if (completionDate < today) return "late";
+  if (completionDate === today) return "due_today";
+  return "on_schedule";
 }
 
 function ensureTables() {
@@ -221,25 +262,30 @@ export function getSotIssueData(): SotIssueData {
   const fieldNames = parseJson<Record<string, string>>(getMeta("field_names"), {});
   const modelMap = readSotModelMap();
   const modelFieldId = process.env.SOT_MODEL_FIELD_ID?.trim() || "1";
+  const today = todayInJakarta();
   const { config, problem } = readSotIssueConfig();
 
   return {
-    issues: rows.map((row) => ({
-      id: row.id,
-      tracker: translateLabel(row.tracker, TRACKER_LABELS),
-      status: translateLabel(row.status, STATUS_LABELS),
-      subject: row.subject,
-      assignedTo: row.assigned_to,
-      updatedOn: row.updated_on,
-      updatedLabel: formatDate(row.updated_on),
-      fixedVersion: row.fixed_version,
-      project: row.project,
-      fields: (() => {
-        const fields = parseJson<Record<string, string>>(row.fields_json, {});
-        if (fields[modelFieldId]) fields[modelFieldId] = mapSotModelValue(fields[modelFieldId], modelMap);
-        return fields;
-      })(),
-    })),
+    issues: rows.map((row) => {
+      const status = translateLabel(row.status, STATUS_LABELS);
+      const fields = parseJson<Record<string, string>>(row.fields_json, {});
+      const completionDate = getCompletionDate(status, fields);
+      if (fields[modelFieldId]) fields[modelFieldId] = mapSotModelValue(fields[modelFieldId], modelMap);
+      return {
+        id: row.id,
+        tracker: translateLabel(row.tracker, TRACKER_LABELS),
+        status,
+        subject: row.subject,
+        assignedTo: row.assigned_to,
+        updatedOn: row.updated_on,
+        updatedLabel: formatDate(row.updated_on),
+        completionDate,
+        judgement: judgeCompletionDate(status, completionDate, today),
+        fixedVersion: row.fixed_version,
+        project: row.project,
+        fields,
+      };
+    }),
     columns: fieldIds.map((id) => ({ id: String(id), label: fieldNames[String(id)] ?? `CF_${id}` })),
     issueBaseUrl: getMeta("base_url"),
     filterSummary: getMeta("filter_summary"),
