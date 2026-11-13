@@ -249,7 +249,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
       )}
 
       <div className="surface hidden max-h-[58vh] overflow-auto rounded-xl shadow-sm md:block">
-          <table className="data-table w-full min-w-[820px] border-collapse text-sm">
+          <table className="data-table table-jobs w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs text-slate-500">
               <th className="px-4 py-3 font-semibold">Job</th>
@@ -364,7 +364,7 @@ function GroupRows({
 }) {
   return (
     <>
-      <tr className="bg-slate-50">
+      <tr className="table-group-row bg-slate-50">
         <td colSpan={5} className="px-4 py-2.5 text-[13px] font-bold">
           {modelName} <span className="font-medium text-slate-500">· {rows.length} job</span>
         </td>

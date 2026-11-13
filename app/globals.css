@@ -32,15 +32,84 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .data-table {
-  border: 1px solid #e2e8f0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--surface);
 }
 
 .data-table th,
 .data-table td {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.data-table th {
+  padding: 11px 14px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.data-table td {
+  padding: 12px 14px;
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table tbody tr {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.data-table tbody tr:not(.table-group-row):hover td {
+  background: #f8fbfe;
+}
+
+.data-table .table-group-row td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  background: #f6f9fc;
+  color: var(--text);
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.data-table.table-issues th {
+  padding: 10px 12px;
+  font-size: 10px;
+}
+
+.data-table.table-issues td {
+  padding: 10px 12px;
+  font-size: 12px;
+}
+
+.data-table.table-issues tbody tr:nth-child(even) td,
+.data-table.table-sot-job tbody tr:nth-child(even) td {
+  background: #fbfcfe;
+}
+
+.data-table.table-issues tbody tr:hover td,
+.data-table.table-sot-job tbody tr:hover td {
+  background: #f1f8fe;
+}
+
+.data-table.table-sot-job td {
+  padding-top: 13px;
+  padding-bottom: 13px;
 }
 
 .data-table tbody tr:last-child td {
@@ -51,7 +120,16 @@ body {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: #f1f5f9;
+  background: var(--surface-2);
+}
+
+.glass.navbar-shell {
+  background: #102535;
+  border-color: rgb(255 255 255 / 0.1);
+}
+
+.navbar-shell .navbar-active-pill {
+  background: var(--brand);
 }
 
 .site-shell main input:not([type="checkbox"]),
@@ -234,6 +312,16 @@ textarea:focus-visible,
     min-height: calc(100vh - 16px);
     margin: 8px auto;
     border-radius: 18px;
+  }
+
+  .data-table th {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .data-table td {
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
 }

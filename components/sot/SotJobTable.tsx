@@ -132,7 +132,7 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
 
   return (
     <div data-drawer-open={selectedProject ? "true" : "false"}>
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <section className="card overflow-hidden">
         <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
           <label className="min-w-[250px] flex-[1.5] text-xs font-semibold text-slate-600">
             Cari project atau model
@@ -161,7 +161,7 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
           </label>
         </div>
         <div className="max-h-[58vh] overflow-auto">
-          <table className="data-table w-full min-w-[900px] border-collapse text-sm">
+          <table className="data-table table-sot-job w-full min-w-[900px] border-collapse text-sm">
             <thead><tr className="bg-slate-100 text-left text-xs text-slate-500"><th className="px-4 py-3 font-semibold">FY</th><th className="px-4 py-3 font-semibold">Project</th><th className="px-4 py-3 font-semibold">Target model</th><th className="px-4 py-3 font-semibold">Mapping</th><th className="px-4 py-3 font-semibold">Status</th><th className="px-4 py-3 font-semibold">Aksi</th></tr></thead>
             <tbody>
               {filtered.map((project) => {

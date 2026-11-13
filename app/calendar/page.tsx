@@ -16,7 +16,7 @@ export default function CalendarPage() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Kalender Kerja</h1>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Kalender Kerja</h1>
         <p className="mt-1.5 text-sm text-slate-500">
           Pantau tenggat job, rapat, dan event team. Klik tanggal untuk menambah event.
         </p>

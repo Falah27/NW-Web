@@ -214,7 +214,7 @@ export default function SotIssueTable({
       <div key={filterKey} className="filter-results-in">
       <div className="max-h-[62vh] min-h-[240px] overflow-auto">
         <div className="p-3">
-        <table className="data-table min-w-[1800px] w-max table-fixed border-separate border-spacing-0 text-sm">
+        <table className="data-table table-issues min-w-[1800px] w-max table-fixed border-separate border-spacing-0 text-sm">
           <colgroup>
             <col className="w-[60px]" />
             <col className="w-[90px]" />
@@ -222,7 +222,7 @@ export default function SotIssueTable({
             <col className="w-[300px]" />
             <col className="w-[190px]" />
             <col className="w-[150px]" />
-            <col className="w-[80px]" />
+            <col className="w-[100px]" />
             <col className="w-[120px]" />
             <col className="w-[120px]" />
             <col className="w-[110px]" />

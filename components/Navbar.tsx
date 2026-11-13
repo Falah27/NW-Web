@@ -42,7 +42,7 @@ export default function Navbar() {
       <Link href="/jobs" className="shrink-0 text-xl font-bold tracking-tight text-slate-900">
         team<span className="ml-0.5 rounded-lg bg-brand px-2 text-white shadow-sm">hub</span>
       </Link>
-      <nav ref={navRef} className="glass relative flex max-w-[calc(100%-8rem)] gap-1 overflow-x-auto rounded-full bg-[#102535]/95 p-1.5 shadow-lg shadow-slate-900/15">
+      <nav ref={navRef} className="navbar-shell glass relative flex max-w-[calc(100%-8rem)] gap-1 overflow-x-auto rounded-full p-1.5 shadow-lg shadow-slate-900/15">
         <span aria-hidden="true" className="navbar-active-pill absolute inset-y-1 left-1 rounded-full bg-sky-500 shadow-sm" style={{ width: indicator.width, transform: `translateX(${indicator.x}px)` }} />
         {links.map((l) => {
           const active = pathname.startsWith(l.href);
