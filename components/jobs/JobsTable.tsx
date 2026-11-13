@@ -297,15 +297,23 @@ function GroupRows({
         <tr
           key={j.id}
           onClick={() => onSelect(j)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSelect(j);
+            }
+          }}
+          role="button"
+          tabIndex={0}
           aria-current={selectedId === j.id ? "true" : undefined}
           className={`cursor-pointer border-t border-slate-200 align-top transition-colors hover:bg-slate-50 ${
             selectedId === j.id ? "bg-brand-soft shadow-[inset_4px_0_0_#2b4acb]" : ""
           }`}
         >
           <td className="px-4 py-3.5">
-            <button type="button" className="text-left font-semibold hover:text-brand">
+            <span className="text-left font-semibold hover:text-brand">
               {j.jobItem}
-            </button>
+            </span>
             <div className="mt-0.5 text-xs text-slate-500">
               {j.module} · {j.stage}
             </div>

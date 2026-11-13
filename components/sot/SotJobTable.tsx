@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { saveSotManualMappingAction } from "@/app/sot-job/actions";
 import type { SotJobModelGroup, SotJobProject } from "@/lib/sot-job-repo";
+import useDialogFocus from "@/components/ui/useDialogFocus";
 
 const ALL = "all";
 
@@ -28,6 +29,7 @@ function ProjectDrawer({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose });
 
   function save(sourceName: string, value: string) {
     setError(null);
@@ -47,6 +49,7 @@ function ProjectDrawer({
   return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30" onClick={onClose}>
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Detail project ${project.projectName}`}

@@ -4,6 +4,7 @@ import { startTransition, useActionState, useEffect } from "react";
 import type { Job } from "@/lib/types";
 import { saveJobAction, type FormState } from "@/app/jobs/actions";
 import { SOT_ERROR, SOT_HTML_PATTERN } from "@/lib/sot";
+import useDialogFocus from "@/components/ui/useDialogFocus";
 
 const initialState: FormState = { ok: false };
 
@@ -37,6 +38,7 @@ export default function JobFormDrawer({
   onClose: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveJobAction, initialState);
+  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose });
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,18 +50,11 @@ export default function JobFormDrawer({
     if (state.ok) onClose();
   }, [state.ok, onClose]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={job ? "Edit job" : "Tambah job"}

@@ -10,6 +10,7 @@ import {
   type SotActionResult,
 } from "@/app/jobs/sot-sync-action";
 import type { SotState } from "@/lib/sot-projects-repo";
+import useDialogFocus from "@/components/ui/useDialogFocus";
 
 const kindLabel = { projects: "Daftar project", leader: "Saring Team Leader", members: "Target model" } as const;
 
@@ -79,6 +80,7 @@ export default function SotSyncButton() {
   }
 
   const busy = pending || prefixPending || Boolean(state?.running);
+  const dialogRef = useDialogFocus<HTMLDivElement>({ open, onClose: () => setOpen(false) });
   const fys = state?.fys ?? [];
   const run = state?.run ?? null;
   const progress = state?.progress ?? { done: 0, total: 0, empty: 0, failed: 0 };
@@ -112,6 +114,7 @@ export default function SotSyncButton() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/30" onClick={() => !busy && setOpen(false)} aria-hidden="true" />
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="Sinkron project SOT"

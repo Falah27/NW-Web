@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { syncExcelAction, type SyncState } from "@/app/jobs/sync-action";
 import Toast from "@/components/ui/Toast";
+import useDialogFocus from "@/components/ui/useDialogFocus";
 
 const initialState: SyncState = { ok: false };
 
@@ -26,6 +27,7 @@ export default function SyncButton() {
 function SyncDialog({ onClose }: { onClose: () => void }) {
   const [state, formAction, pending] = useActionState(syncExcelAction, initialState);
   const [dismissedToast, setDismissedToast] = useState<string | null>(null);
+  const dialogRef = useDialogFocus<HTMLDivElement>({ open: true, onClose });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,7 +43,7 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/30" onClick={() => !pending && onClose()} aria-hidden="true" />
-      <div role="dialog" aria-modal="true" aria-label="Sinkron dari Excel" className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sinkron dari Excel" className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="text-xl font-bold">Sinkron dari Excel</h2>
         <p className="mt-1 text-sm text-slate-500">
           Unggah workbook FY26 (.xlsm atau .xlsx). Job hasil import sebelumnya akan diganti dengan isi file ini.

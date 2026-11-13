@@ -3,12 +3,14 @@
 import { startTransition, useActionState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { saveEventAction, type EventFormState } from "@/app/calendar/actions";
+import useDialogFocus from "@/components/ui/useDialogFocus";
 
 const initialState: EventFormState = { ok: false };
 const inputClass = "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900";
 
 export default function EventFormDrawer({ defaultDate, onClose }: { defaultDate?: string; onClose: () => void }) {
   const [state, formAction, pending] = useActionState(saveEventAction, initialState);
+  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose });
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -20,20 +22,12 @@ export default function EventFormDrawer({ defaultDate, onClose }: { defaultDate?
     if (state.ok) onClose();
   }, [state.ok, onClose]);
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   if (typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
-      <aside role="dialog" aria-modal="true" aria-label="Tambah event" className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-6 shadow-xl">
+      <aside ref={dialogRef} role="dialog" aria-modal="true" aria-label="Tambah event" className="absolute right-0 top-0 flex h-full w-full max-w-md flex-col overflow-y-auto bg-white p-6 shadow-xl">
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className="text-xl font-bold">Tambah event</h2>
           <button type="button" onClick={onClose} aria-label="Tutup form" className="flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-slate-300 text-lg hover:bg-slate-50">×</button>

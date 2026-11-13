@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { Job, JobStatus } from "@/lib/types";
 import { diffDaysISO } from "@/lib/date";
+import useDialogFocus from "@/components/ui/useDialogFocus";
 
 type JobWithStatus = Job & { status: JobStatus };
 
@@ -189,19 +190,7 @@ export default function JobDetailDrawer({
   onDelete?: (job: Job) => void | Promise<void>;
   today: string;
 }) {
-  useEffect(() => {
-    if (!job) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [job, onClose]);
+  const dialogRef = useDialogFocus<HTMLElement>({ open: Boolean(job), onClose });
 
   if (!job || typeof document === "undefined") return null;
 
@@ -238,6 +227,7 @@ export default function JobDetailDrawer({
     <div className="fixed inset-0 z-50">
       <div className="drawer-overlay-in absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Detail job ${job.jobItem}`}
