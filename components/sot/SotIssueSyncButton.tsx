@@ -1,13 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 import { syncSotIssuesAction } from "@/app/sot-issues/actions";
+import Toast from "@/components/ui/Toast";
 
 export default function SotIssueSyncButton({ disabled }: { disabled?: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const dismissNotice = useCallback(() => setNotice(null), []);
 
   function sync() {
     setNotice(null);
@@ -28,11 +31,7 @@ export default function SotIssueSyncButton({ disabled }: { disabled?: boolean })
       >
         {pending ? "Membaca dari SOT..." : "Sinkron issue SOT"}
       </button>
-      {notice && (
-        <p role={notice.ok ? "status" : "alert"} className={`max-w-md text-right text-xs ${notice.ok ? "text-emerald-700" : "text-red-700"}`}>
-          {notice.text}
-        </p>
-      )}
+      {notice && <Toast message={notice.text} tone={notice.ok ? "success" : "error"} onDismiss={dismissNotice} />}
     </div>
   );
 }

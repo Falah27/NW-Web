@@ -236,7 +236,7 @@ export default function JobDetailDrawer({
 
   return createPortal(
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
+      <div className="drawer-overlay-in absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
       <aside
         role="dialog"
         aria-modal="true"

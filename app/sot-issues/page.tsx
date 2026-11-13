@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import SotIssueSyncButton from "@/components/sot/SotIssueSyncButton";
 import SotIssueTable from "@/components/sot/SotIssueTable";
 import { getSotIssueData } from "@/lib/sot-issues-repo";
+import { IssueSkeleton } from "@/components/ui/Skeleton";
 
 // Semua yang membaca env/database ada di sini (setelah connection()), supaya tidak ikut terbekukan saat build.
 async function SotIssueContent() {
@@ -39,7 +40,7 @@ async function SotIssueContent() {
 
 export default function SotIssuesPage() {
   return (
-    <Suspense fallback={<p className="py-10 text-center text-slate-500">Memuat data SOT...</p>}>
+    <Suspense fallback={<IssueSkeleton />}>
       <SotIssueContent />
     </Suspense>
   );

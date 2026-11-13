@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { syncExcelAction, type SyncState } from "@/app/jobs/sync-action";
+import Toast from "@/components/ui/Toast";
 
 const initialState: SyncState = { ok: false };
 
@@ -24,6 +25,7 @@ export default function SyncButton() {
 
 function SyncDialog({ onClose }: { onClose: () => void }) {
   const [state, formAction, pending] = useActionState(syncExcelAction, initialState);
+  const [dismissedToast, setDismissedToast] = useState<string | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -33,6 +35,9 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose, pending]);
 
+  const toastMessage = state.error ?? (state.ok ? state.message : null) ?? null;
+  const toastTone = state.error ? "error" : "success";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/30" onClick={() => !pending && onClose()} aria-hidden="true" />
@@ -41,7 +46,7 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
         <p className="mt-1 text-sm text-slate-500">
           Unggah workbook FY26 (.xlsm atau .xlsx). Job hasil import sebelumnya akan diganti dengan isi file ini.
         </p>
-        <form action={formAction} className="mt-5 flex flex-col gap-4">
+        <form action={formAction} onSubmit={() => setDismissedToast(null)} className="mt-5 flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
             File Excel *
             <input type="file" name="file" accept=".xlsm,.xlsx" required className="block w-full rounded-lg border border-slate-300 bg-white p-2 text-sm font-normal text-slate-900 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-semibold" />
@@ -62,6 +67,7 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
           </div>
         </form>
       </div>
+      {toastMessage && dismissedToast !== toastMessage && <Toast message={toastMessage} tone={toastTone} onDismiss={() => setDismissedToast(toastMessage)} />}
     </div>
   );
 }

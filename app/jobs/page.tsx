@@ -6,6 +6,7 @@ import SyncButton from "@/components/jobs/SyncButton";
 import { getJobs, getMembers } from "@/lib/jobs-repo";
 import { getLastSync } from "@/lib/xlsm-import";
 import { todayISO } from "@/lib/date";
+import { DashboardSkeleton } from "@/components/ui/Skeleton";
 
 async function JobsContent() {
   await connection();
@@ -73,7 +74,7 @@ export default function JobsPage() {
           </Suspense>
         </div>
       </div>
-      <Suspense fallback={<p className="py-10 text-center text-slate-500">Memuat data job...</p>}>
+      <Suspense fallback={<DashboardSkeleton />}>
         <JobsContent />
       </Suspense>
     </div>

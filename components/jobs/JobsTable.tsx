@@ -8,6 +8,7 @@ import ProgressBar from "@/components/ProgressBar";
 import JobDetailDrawer from "@/components/jobs/JobDetailDrawer";
 import JobFormDrawer from "@/components/jobs/JobFormDrawer";
 import { deleteJobAction } from "@/app/jobs/actions";
+import FilterChip from "@/components/ui/FilterChip";
 
 const ALL = "all";
 
@@ -127,6 +128,19 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
     if (filter === ALL || filter === "Closed") setShowClosed(true);
   }
 
+  function clearFilters() {
+    setQ("");
+    setModel(ALL);
+    setMod(ALL);
+    setStage(ALL);
+    setPic(ALL);
+    setStatus(ALL);
+    setShowClosed(false);
+  }
+
+  const filterKey = [q, model, mod, stage, pic, status, showClosed].join("|");
+  const hasFilters = Boolean(q || model !== ALL || mod !== ALL || stage !== ALL || pic !== ALL || status !== ALL || showClosed);
+
   return (
     <div className="flex flex-col gap-5" data-drawer-open={selected ? "true" : "false"}>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
@@ -178,14 +192,31 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         </label>
       </div>
 
+      {hasFilters && (
+        <div className="flex flex-wrap items-center gap-2" aria-label="Filter aktif">
+          <span className="text-xs font-semibold text-slate-500">Filter aktif:</span>
+          {q && <FilterChip label={`Cari: ${q}`} onRemove={() => setQ("")} />}
+          {model !== ALL && <FilterChip label={`Model: ${model}`} onRemove={() => setModel(ALL)} />}
+          {mod !== ALL && <FilterChip label={`Modul: ${mod}`} onRemove={() => setMod(ALL)} />}
+          {stage !== ALL && <FilterChip label={`Stage: ${stage}`} onRemove={() => setStage(ALL)} />}
+          {pic !== ALL && <FilterChip label={`PIC: ${pic}`} onRemove={() => setPic(ALL)} />}
+          {status !== ALL && <FilterChip label={`Status: ${status}`} onRemove={() => setStatus(ALL)} />}
+          {showClosed && <FilterChip label="Job selesai ditampilkan" onRemove={() => setShowClosed(false)} />}
+          <button type="button" onClick={clearFilters} className="px-2 text-xs font-semibold text-slate-500 transition hover:text-brand">
+            Reset semua
+          </button>
+        </div>
+      )}
+
       {deleteError && (
         <div className="rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-700">
           Gagal menghapus job: {deleteError}
         </div>
       )}
 
-      <div className="max-h-[58vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="data-table w-full min-w-[820px] border-collapse text-sm">
+      <div key={filterKey} className="filter-results-in">
+        <div className="max-h-[58vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="data-table w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs text-slate-500">
               <th className="px-4 py-3 font-semibold">Job</th>
@@ -213,12 +244,13 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
               />
             ))}
           </tbody>
-        </table>
-      </div>
+          </table>
+        </div>
 
-      <p className="text-sm text-slate-500">
-        Menampilkan {filtered.length} job. Status dihitung otomatis dari progress dan tanggal.
-      </p>
+        <p className="mt-3 text-sm text-slate-500">
+          Menampilkan {filtered.length} job. Status dihitung otomatis dari progress dan tanggal.
+        </p>
+      </div>
       <JobDetailDrawer
         job={selected}
         today={today}

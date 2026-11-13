@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { SotIssueColumn, SotIssueRow } from "@/lib/sot-issues-repo";
+import FilterChip from "@/components/ui/FilterChip";
 
 const ALL = "__all__";
 const PAGE = 25;
@@ -104,6 +105,7 @@ export default function SotIssueTable({
   }
 
   const hasFilters = query !== "" || status !== ALL || tracker !== ALL || assignee !== ALL || model !== ALL || judgement !== ALL;
+  const filterKey = [query, status, tracker, assignee, model, judgement].join("|");
 
   function clearFilters() {
     setQuery("");
@@ -137,6 +139,21 @@ export default function SotIssueTable({
           );
         })}
       </div>
+
+      {hasFilters && (
+        <div className="flex flex-wrap items-center gap-2" aria-label="Filter aktif">
+          <span className="text-xs font-semibold text-slate-500">Filter aktif:</span>
+          {query && <FilterChip label={`Cari: ${query}`} onRemove={() => reset(setQuery)("")} />}
+          {status !== ALL && <FilterChip label={`Status: ${status}`} onRemove={() => reset(setStatus)(ALL)} />}
+          {tracker !== ALL && <FilterChip label={`Tracker: ${tracker}`} onRemove={() => reset(setTracker)(ALL)} />}
+          {assignee !== ALL && <FilterChip label={`PIC: ${assignee}`} onRemove={() => reset(setAssignee)(ALL)} />}
+          {model !== ALL && <FilterChip label={`Model: ${model}`} onRemove={() => reset(setModel)(ALL)} />}
+          {judgement !== ALL && <FilterChip label={`Judgement: ${JUDGEMENTS.find((item) => item.value === judgement)?.label ?? judgement}`} onRemove={() => reset(setJudgement)(ALL)} />}
+          <button type="button" onClick={clearFilters} className="px-2 text-xs font-semibold text-slate-500 transition hover:text-brand">
+            Reset semua
+          </button>
+        </div>
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
@@ -187,6 +204,7 @@ export default function SotIssueTable({
         </button>
       </div>
 
+      <div key={filterKey} className="filter-results-in">
       <div className="max-h-[62vh] min-h-[240px] overflow-auto">
         <div className="p-3">
         <table className="data-table min-w-[1800px] w-max table-fixed border-separate border-spacing-0 text-sm">
@@ -282,6 +300,7 @@ export default function SotIssueTable({
             Berikutnya
           </button>
         </div>
+      </div>
       </div>
       </section>
     </div>

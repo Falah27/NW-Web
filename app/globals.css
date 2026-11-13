@@ -109,6 +109,40 @@ body {
 }
 
 .drawer-in { animation: drawer-in 0.22s ease-out; }
+.drawer-overlay-in { animation: overlay-in 0.18s ease-out both; }
+.filter-results-in { animation: filter-results-in 0.24s ease-out both; }
+.filter-chip-in { animation: filter-chip-in 0.18s ease-out both; }
+.toast-in { animation: toast-in 0.28s cubic-bezier(.2,.8,.2,1) both; }
+.skeleton {
+  background: linear-gradient(100deg, rgb(226 232 240 / 0.7) 20%, rgb(248 250 252 / 0.95) 40%, rgb(226 232 240 / 0.7) 60%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes filter-results-in {
+  from { opacity: 0.35; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes filter-chip-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
 .fc-event-selected {
   box-shadow: inset 0 0 0 2px #0f172a, 0 0 0 2px rgb(255 255 255 / 0.9);
   font-weight: 700;
@@ -117,6 +151,11 @@ body {
   body,
   .site-shell,
   .drawer-in,
+  .drawer-overlay-in,
+  .filter-results-in,
+  .filter-chip-in,
+  .toast-in,
+  .skeleton,
   .site-shell main [class*="rounded-2xl"][class*="bg-white"],
   .site-shell main [class*="rounded-3xl"][class*="bg-white"] {
     animation: none;
