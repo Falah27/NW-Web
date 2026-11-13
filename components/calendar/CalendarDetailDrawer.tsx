@@ -6,6 +6,7 @@ import StatusBadge from "@/components/StatusBadge";
 import ProgressBar from "@/components/ProgressBar";
 import type { Job } from "@/lib/types";
 import useDialogFocus from "@/components/ui/useDialogFocus";
+import useDialogTransition from "@/components/ui/useDialogTransition";
 
 export type Selected =
   | { type: "job"; job: Job; status: JobStatus }
@@ -51,7 +52,8 @@ export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent,
   deleting: boolean;
   deleteError: string | null;
 }) {
-  const dialogRef = useDialogFocus<HTMLElement>({ open: Boolean(selected), onClose });
+  const { closing, requestClose } = useDialogTransition({ onClose });
+  const dialogRef = useDialogFocus<HTMLElement>({ open: Boolean(selected), onClose: requestClose });
 
   if (!selected || typeof document === "undefined") return null;
 
@@ -61,15 +63,15 @@ export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent,
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-end p-0 sm:p-3">
-      <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]" onClick={onClose} aria-hidden="true" />
-      <aside ref={dialogRef} role="dialog" aria-modal="true" aria-label="Detail kalender" className="relative flex h-full w-full max-w-[420px] flex-col overflow-y-auto rounded-none bg-white shadow-2xl sm:max-h-[calc(100vh-1.5rem)] sm:rounded-2xl">
+      <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]`} onClick={requestClose} aria-hidden="true" />
+      <aside ref={dialogRef} role="dialog" aria-modal="true" aria-label="Detail kalender" className={`${closing ? "drawer-out" : "drawer-in"} relative flex h-full w-full max-w-[420px] flex-col overflow-y-auto rounded-none bg-white shadow-2xl sm:max-h-[calc(100vh-1.5rem)] sm:rounded-2xl`}>
         <header className="flex items-start justify-between gap-4 border-b border-dashed border-slate-200 px-4 pb-3.5 pt-4 sm:px-5">
           <div className="min-w-0">
             <p className="line-clamp-2 text-2xl font-bold leading-tight tracking-tight text-slate-950">{title}</p>
             <p className="mt-1 text-sm font-semibold text-slate-600">{model}</p>
             {isJob && <p className="mt-1 truncate text-xs text-slate-400">{selected.job.assignee || "Tanpa PIC"}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="Tutup detail" className="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">×</button>
+          <button type="button" onClick={requestClose} aria-label="Tutup detail" className="flex h-7 w-7 flex-none items-center justify-center rounded-md border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">×</button>
         </header>
 
         {isJob ? (

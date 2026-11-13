@@ -103,6 +103,11 @@ textarea:focus-visible,
   to { transform: translateX(0); opacity: 1; }
 }
 
+@keyframes drawer-out {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(24px); opacity: 0; }
+}
+
 @keyframes background-drift {
   from { background-position: 0% 0%; }
   to { background-position: 100% 100%; }
@@ -119,10 +124,13 @@ textarea:focus-visible,
 }
 
 .drawer-in { animation: drawer-in 0.22s ease-out; }
+.drawer-out { animation: drawer-out 0.2s ease-in both; }
 .drawer-overlay-in { animation: overlay-in 0.18s ease-out both; }
+.drawer-overlay-out { animation: overlay-out 0.2s ease-in both; }
 .filter-results-in { animation: filter-results-in 0.24s ease-out both; }
 .filter-chip-in { animation: filter-chip-in 0.18s ease-out both; }
 .toast-in { animation: toast-in 0.28s cubic-bezier(.2,.8,.2,1) both; }
+.toast-out { animation: toast-out 0.2s ease-in both; }
 .skeleton {
   background: linear-gradient(100deg, rgb(226 232 240 / 0.7) 20%, rgb(248 250 252 / 0.95) 40%, rgb(226 232 240 / 0.7) 60%);
   background-size: 200% 100%;
@@ -132,6 +140,11 @@ textarea:focus-visible,
 @keyframes overlay-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @keyframes filter-results-in {
@@ -149,6 +162,11 @@ textarea:focus-visible,
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-8px) scale(0.98); }
+}
+
 @keyframes skeleton-shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }
@@ -161,10 +179,13 @@ textarea:focus-visible,
   body,
   .site-shell,
   .drawer-in,
+  .drawer-out,
   .drawer-overlay-in,
+  .drawer-overlay-out,
   .filter-results-in,
   .filter-chip-in,
   .toast-in,
+  .toast-out,
   .skeleton,
   .site-shell main [class*="rounded-2xl"][class*="bg-white"],
   .site-shell main [class*="rounded-3xl"][class*="bg-white"] {

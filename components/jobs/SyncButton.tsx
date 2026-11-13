@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { syncExcelAction, type SyncState } from "@/app/jobs/sync-action";
 import Toast from "@/components/ui/Toast";
 import useDialogFocus from "@/components/ui/useDialogFocus";
+import useDialogTransition from "@/components/ui/useDialogTransition";
 
 const initialState: SyncState = { ok: false };
 
@@ -27,23 +28,16 @@ export default function SyncButton() {
 function SyncDialog({ onClose }: { onClose: () => void }) {
   const [state, formAction, pending] = useActionState(syncExcelAction, initialState);
   const [dismissedToast, setDismissedToast] = useState<string | null>(null);
-  const dialogRef = useDialogFocus<HTMLDivElement>({ open: true, onClose });
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !pending) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, pending]);
+  const { closing, requestClose } = useDialogTransition({ onClose });
+  const dialogRef = useDialogFocus<HTMLDivElement>({ open: true, onClose: requestClose });
 
   const toastMessage = state.error ?? (state.ok ? state.message : null) ?? null;
   const toastTone = state.error ? "error" : "success";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/30" onClick={() => !pending && onClose()} aria-hidden="true" />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sinkron dari Excel" className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+      <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={() => !pending && requestClose()} aria-hidden="true" />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sinkron dari Excel" className={`${closing ? "drawer-out" : "drawer-in"} relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl`}>
         <h2 className="text-xl font-bold">Sinkron dari Excel</h2>
         <p className="mt-1 text-sm text-slate-500">
           Unggah workbook FY26 (.xlsm atau .xlsx). Job hasil import sebelumnya akan diganti dengan isi file ini.
@@ -64,12 +58,12 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
           {state.error && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">{state.error}</p>}
           {state.ok && state.message && <p role="status" className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">{state.message}</p>}
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} disabled={pending} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60">{state.ok ? "Tutup" : "Batal"}</button>
+            <button type="button" onClick={requestClose} disabled={pending} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60">{state.ok ? "Tutup" : "Batal"}</button>
             {!state.ok && <button type="submit" disabled={pending} className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">{pending ? "Mengimpor..." : "Mulai sinkron"}</button>}
           </div>
         </form>
       </div>
-      {toastMessage && dismissedToast !== toastMessage && <Toast message={toastMessage} tone={toastTone} onDismiss={() => setDismissedToast(toastMessage)} />}
+      {toastMessage && dismissedToast !== toastMessage && <Toast key={toastMessage} message={toastMessage} tone={toastTone} onDismiss={() => setDismissedToast(toastMessage)} />}
     </div>
   );
 }

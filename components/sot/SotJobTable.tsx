@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { saveSotManualMappingAction } from "@/app/sot-job/actions";
 import type { SotJobModelGroup, SotJobProject } from "@/lib/sot-job-repo";
 import useDialogFocus from "@/components/ui/useDialogFocus";
+import useDialogTransition from "@/components/ui/useDialogTransition";
 
 const ALL = "all";
 
@@ -29,7 +30,8 @@ function ProjectDrawer({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose });
+  const { closing, requestClose } = useDialogTransition({ onClose });
+  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose: requestClose });
 
   function save(sourceName: string, value: string) {
     setError(null);
@@ -47,13 +49,13 @@ function ProjectDrawer({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/30" onClick={onClose}>
+    <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} fixed inset-0 z-50 flex justify-end bg-slate-900/30`} onClick={requestClose}>
       <aside
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Detail project ${project.projectName}`}
-        className="h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-xl"
+        className={`${closing ? "drawer-out" : "drawer-in"} h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-xl`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
@@ -62,7 +64,7 @@ function ProjectDrawer({
             <h2 className="text-2xl font-bold">{project.projectName}</h2>
             <p className="mt-1 text-sm text-slate-500">Diperbarui {formatDate(project.updatedAt)}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
+          <button type="button" onClick={requestClose} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
             Tutup
           </button>
         </div>

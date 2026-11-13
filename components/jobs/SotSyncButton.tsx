@@ -11,6 +11,7 @@ import {
 } from "@/app/jobs/sot-sync-action";
 import type { SotState } from "@/lib/sot-projects-repo";
 import useDialogFocus from "@/components/ui/useDialogFocus";
+import useDialogTransition from "@/components/ui/useDialogTransition";
 
 const kindLabel = { projects: "Daftar project", leader: "Saring Team Leader", members: "Target model" } as const;
 
@@ -80,7 +81,8 @@ export default function SotSyncButton() {
   }
 
   const busy = pending || prefixPending || Boolean(state?.running);
-  const dialogRef = useDialogFocus<HTMLDivElement>({ open, onClose: () => setOpen(false) });
+  const { closing, requestClose } = useDialogTransition({ onClose: () => setOpen(false) });
+  const dialogRef = useDialogFocus<HTMLDivElement>({ open, onClose: requestClose });
   const fys = state?.fys ?? [];
   const run = state?.run ?? null;
   const progress = state?.progress ?? { done: 0, total: 0, empty: 0, failed: 0 };
@@ -112,13 +114,13 @@ export default function SotSyncButton() {
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-900/30" onClick={() => !busy && setOpen(false)} aria-hidden="true" />
+          <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={() => !busy && requestClose()} aria-hidden="true" />
           <div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label="Sinkron project SOT"
-            className="relative flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            className={`${closing ? "drawer-out" : "drawer-in"} relative flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl`}
           >
             <div>
               <h2 className="text-xl font-bold">Sinkron project SOT</h2>
@@ -306,7 +308,7 @@ export default function SotSyncButton() {
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={requestClose}
                 disabled={busy}
                 className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold disabled:opacity-60"
               >

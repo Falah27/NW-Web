@@ -5,6 +5,7 @@ import type { Job } from "@/lib/types";
 import { saveJobAction, type FormState } from "@/app/jobs/actions";
 import { SOT_ERROR, SOT_HTML_PATTERN } from "@/lib/sot";
 import useDialogFocus from "@/components/ui/useDialogFocus";
+import useDialogTransition from "@/components/ui/useDialogTransition";
 
 const initialState: FormState = { ok: false };
 
@@ -38,7 +39,8 @@ export default function JobFormDrawer({
   onClose: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveJobAction, initialState);
-  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose });
+  const { closing, requestClose } = useDialogTransition({ onClose });
+  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose: requestClose });
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,24 +49,24 @@ export default function JobFormDrawer({
   }
 
   useEffect(() => {
-    if (state.ok) onClose();
-  }, [state.ok, onClose]);
+    if (state.ok) requestClose();
+  }, [state.ok, requestClose]);
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
+      <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={requestClose} aria-hidden="true" />
       <aside
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={job ? "Edit job" : "Tambah job"}
-        className="absolute right-0 top-0 flex h-full w-full max-w-lg flex-col overflow-y-auto bg-white p-6 shadow-xl"
+        className={`${closing ? "drawer-out" : "drawer-in"} absolute right-0 top-0 flex h-full w-full max-w-lg flex-col overflow-y-auto bg-white p-6 shadow-xl`}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <h2 className="text-xl font-bold">{job ? "Edit job" : "Tambah job"}</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             aria-label="Tutup form"
             className="flex h-10 w-10 flex-none items-center justify-center rounded-lg border border-slate-300 text-lg hover:bg-slate-50"
           >
@@ -157,7 +159,7 @@ export default function JobFormDrawer({
           <div className="flex justify-end gap-2 pt-2">
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50"
             >
               Batal

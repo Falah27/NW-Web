@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { Job, JobStatus } from "@/lib/types";
 import { diffDaysISO } from "@/lib/date";
 import useDialogFocus from "@/components/ui/useDialogFocus";
+import useDialogTransition from "@/components/ui/useDialogTransition";
 
 type JobWithStatus = Job & { status: JobStatus };
 
@@ -190,7 +191,8 @@ export default function JobDetailDrawer({
   onDelete?: (job: Job) => void | Promise<void>;
   today: string;
 }) {
-  const dialogRef = useDialogFocus<HTMLElement>({ open: Boolean(job), onClose });
+  const { closing, requestClose } = useDialogTransition({ onClose });
+  const dialogRef = useDialogFocus<HTMLElement>({ open: Boolean(job), onClose: requestClose });
 
   if (!job || typeof document === "undefined") return null;
 
@@ -225,13 +227,13 @@ export default function JobDetailDrawer({
 
   return createPortal(
     <div className="fixed inset-0 z-50">
-      <div className="drawer-overlay-in absolute inset-0 bg-slate-900/30" onClick={onClose} aria-hidden="true" />
+      <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={requestClose} aria-hidden="true" />
       <aside
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Detail job ${job.jobItem}`}
-        className="drawer-in absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col overflow-hidden bg-white shadow-2xl sm:right-3 sm:top-3 sm:h-[calc(100%-1.5rem)] sm:rounded-3xl"
+        className={`${closing ? "drawer-out" : "drawer-in"} absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col overflow-hidden bg-white shadow-2xl sm:right-3 sm:top-3 sm:h-[calc(100%-1.5rem)] sm:rounded-3xl`}
       >
         <div className={`h-1.5 flex-none ${t.strip}`} />
         <div className="flex-1 overflow-y-auto">
@@ -251,7 +253,7 @@ export default function JobDetailDrawer({
                 </div>
               </div>
             </div>
-            <button type="button" onClick={onClose} aria-label="Tutup detail" className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand">
+            <button type="button" onClick={requestClose} aria-label="Tutup detail" className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand">
               ×
             </button>
           </header>
@@ -343,7 +345,7 @@ export default function JobDetailDrawer({
           </div>
         </div>
 
-        <Footer key={job.id} job={job} onClose={onClose} onEdit={onEdit} onDelete={onDelete} />
+        <Footer key={job.id} job={job} onClose={requestClose} onEdit={onEdit} onDelete={onDelete} />
       </aside>
     </div>,
     document.body
