@@ -217,12 +217,12 @@ export default function SotIssueTable({
         <table className="data-table table-issues min-w-[1800px] w-max table-fixed border-separate border-spacing-0 text-sm">
           <colgroup>
             <col className="w-[60px]" />
-            <col className="w-[90px]" />
+            <col className="w-[100px]" />
             <col className="w-[160px]" />
             <col className="w-[300px]" />
             <col className="w-[190px]" />
             <col className="w-[150px]" />
-            <col className="w-[100px]" />
+            <col className="w-[90px]" />
             <col className="w-[120px]" />
             <col className="w-[120px]" />
             <col className="w-[110px]" />
