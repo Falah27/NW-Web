@@ -48,11 +48,25 @@ export default function SotSyncButton() {
 
   useEffect(() => {
     if (!open) return;
-    const first = setTimeout(() => void refresh(), 0);
-    const timer = setInterval(() => void refresh(), 2000);
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const stop = () => {
+      if (timer) clearInterval(timer);
+      timer = undefined;
+    };
+    const start = () => {
+      stop();
+      void refresh();
+      timer = setInterval(() => void refresh(), 2000);
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") start();
+      else stop();
+    };
+    handleVisibility();
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
-      clearTimeout(first);
-      clearInterval(timer);
+      stop();
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [open, refresh]);
 
@@ -110,7 +124,8 @@ export default function SotSyncButton() {
         }}
         className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50"
       >
-        Sinkron SOT
+        {state?.running && <span className="motion-safe:animate-spin mr-2 inline-block h-3 w-3 rounded-full border-2 border-brand border-t-transparent align-[-1px]" aria-hidden="true" />}
+        {state?.running ? "Sinkron SOT berjalan" : "Sinkron SOT"}
       </button>
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
