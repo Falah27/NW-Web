@@ -115,22 +115,34 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
   }, [filtered]);
 
   const stats = [
-    { label: "Total job", value: jobs.length, sub: `${jobs.filter((j) => j.archived).length} diarsipkan` },
-    { label: "Running", value: count("Running"), sub: "" },
-    { label: "Open", value: count("Open"), sub: "belum mulai" },
-    { label: "Over", value: count("Over"), sub: "lewat End Date" },
-    { label: "Closed", value: count("Closed"), sub: "" },
+    { label: "Total job", value: jobs.length, filter: ALL },
+    { label: "Running", value: count("Running"), filter: "Running" },
+    { label: "Open", value: count("Open"), filter: "Open" },
+    { label: "Over", value: count("Over"), filter: "Over" },
+    { label: "Closed", value: count("Closed"), filter: "Closed" },
   ];
+
+  function selectSummaryFilter(filter: string) {
+    setStatus(filter);
+    if (filter === ALL || filter === "Closed") setShowClosed(true);
+  }
 
   return (
     <div className="flex flex-col gap-5" data-drawer-open={selected ? "true" : "false"}>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <button
+            key={s.label}
+            type="button"
+            aria-pressed={status === s.filter}
+            onClick={() => selectSummaryFilter(s.filter)}
+            className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              status === s.filter ? "border-brand ring-2 ring-brand/15" : "border-slate-200"
+            }`}
+          >
             <div className="text-sm font-medium text-slate-500">{s.label}</div>
             <div className="mt-1 text-3xl font-bold tracking-tight">{s.value}</div>
-            {s.sub && <div className="text-xs text-slate-500">{s.sub}</div>}
-          </div>
+          </button>
         ))}
       </div>
 

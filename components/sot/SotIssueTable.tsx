@@ -103,6 +103,18 @@ export default function SotIssueTable({
     };
   }
 
+  const hasFilters = query !== "" || status !== ALL || tracker !== ALL || assignee !== ALL || model !== ALL || judgement !== ALL;
+
+  function clearFilters() {
+    setQuery("");
+    setStatus(ALL);
+    setTracker(ALL);
+    setAssignee(ALL);
+    setModel(ALL);
+    setJudgement(ALL);
+    setPage(1);
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
@@ -165,6 +177,14 @@ export default function SotIssueTable({
             {models.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
         </label>
+        <button
+          type="button"
+          onClick={clearFilters}
+          disabled={!hasFilters}
+          className="h-10 rounded-xl border border-slate-300 bg-white/80 px-4 text-sm font-semibold text-slate-600 transition hover:border-brand hover:text-brand disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Reset Filter
+        </button>
       </div>
 
       <div className="max-h-[62vh] min-h-[240px] overflow-auto">

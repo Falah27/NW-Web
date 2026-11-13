@@ -16,19 +16,19 @@ export default function Navbar() {
   const pathname = usePathname();
 
   return (
-    <header className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-      <Link href="/jobs" className="text-xl font-bold tracking-tight">
-        team<span className="ml-0.5 rounded-md bg-brand px-2 text-white">hub</span>
+    <header className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <Link href="/jobs" className="shrink-0 text-xl font-bold tracking-tight text-slate-900">
+        team<span className="ml-0.5 rounded-lg bg-brand px-2 text-white shadow-sm">hub</span>
       </Link>
-      <nav className="flex flex-wrap gap-1 rounded-full border border-slate-200 bg-white p-1">
+      <nav className="flex max-w-[calc(100%-8rem)] gap-1 overflow-x-auto rounded-full border border-white/30 bg-[#102535]/95 p-1.5 shadow-lg shadow-slate-900/15 backdrop-blur-md">
         {links.map((l) => {
           const active = pathname.startsWith(l.href);
           return (
             <Link
               key={l.href}
               href={l.href}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                active ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
+              className={`whitespace-nowrap rounded-full px-3.5 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm ${
+                active ? "bg-sky-500 text-white shadow-sm" : "text-slate-300 hover:bg-white/10 hover:text-white"
               }`}
             >
               {l.label}

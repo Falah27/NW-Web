@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans antialiased">
         <div className="site-shell">
           <Navbar />
-          <main className="mx-auto min-h-[calc(100vh-5rem)] max-w-[1600px] px-4 pb-8 pt-3 sm:px-6 lg:px-8">
+          <main className="mx-auto min-h-[calc(100vh-5rem)] w-full min-w-0 max-w-[1600px] px-4 pb-8 pt-5 sm:px-6 lg:px-8">
             {children}
           </main>
         </div>
