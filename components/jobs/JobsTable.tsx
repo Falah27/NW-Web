@@ -9,6 +9,7 @@ import JobDetailDrawer from "@/components/jobs/JobDetailDrawer";
 import JobFormDrawer from "@/components/jobs/JobFormDrawer";
 import { deleteJobAction } from "@/app/jobs/actions";
 import FilterChip from "@/components/ui/FilterChip";
+import CountUp from "@/components/ui/CountUp";
 
 const ALL = "all";
 
@@ -144,18 +145,19 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
   return (
     <div className="flex flex-col gap-5" data-drawer-open={selected ? "true" : "false"}>
       <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        {stats.map((s) => (
+        {stats.map((s, index) => (
           <button
             key={s.label}
             type="button"
             aria-pressed={status === s.filter}
             onClick={() => selectSummaryFilter(s.filter)}
-            className={`card rounded-2xl p-4 text-left transition hover:shadow-md ${
+            style={{ "--i": index } as React.CSSProperties}
+            className={`card card-stagger rounded-2xl p-4 text-left transition hover:shadow-md ${
               status === s.filter ? "border-brand ring-2 ring-brand/15" : "border-slate-200"
             }`}
           >
             <div className="text-sm font-medium text-slate-500">{s.label}</div>
-            <div className="mt-1 text-3xl font-bold tracking-tight">{s.value}</div>
+            <div className="mt-1 text-3xl font-bold tracking-tight"><CountUp value={s.value} /></div>
           </button>
         ))}
       </div>

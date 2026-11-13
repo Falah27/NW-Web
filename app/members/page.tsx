@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import MemberCard from "@/components/members/MemberCard";
 import { getJobs, getMembers } from "@/lib/jobs-repo";
 import { computeStatus } from "@/lib/status";
+import CountUp from "@/components/ui/CountUp";
 
 async function MembersContent() {
   await connection();
@@ -22,10 +23,10 @@ async function MembersContent() {
   return (
     <>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {stats.map((s) => (
-          <div key={s.label} className="card p-5">
+        {stats.map((s, index) => (
+          <div key={s.label} style={{ "--i": index } as React.CSSProperties} className="card card-stagger p-5">
             <div className="text-sm font-medium text-slate-500">{s.label}</div>
-            <div className="mt-1 text-4xl font-bold tracking-tight">{s.value}</div>
+            <div className="mt-1 text-4xl font-bold tracking-tight"><CountUp value={s.value} /></div>
           </div>
         ))}
       </section>

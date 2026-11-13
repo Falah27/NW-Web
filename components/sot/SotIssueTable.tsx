@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { SotIssueColumn, SotIssueRow } from "@/lib/sot-issues-repo";
 import FilterChip from "@/components/ui/FilterChip";
+import CountUp from "@/components/ui/CountUp";
 
 const ALL = "__all__";
 const PAGE = 25;
@@ -120,7 +121,7 @@ export default function SotIssueTable({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {SUMMARY_CARDS.map((card) => {
+        {SUMMARY_CARDS.map((card, index) => {
           const count = card.value === ALL ? issues.length : judgementCounts[card.value] ?? 0;
           const active = judgement === card.value;
           return (
@@ -129,12 +130,13 @@ export default function SotIssueTable({
               type="button"
               aria-pressed={active}
               onClick={() => { setJudgement(card.value); setPage(1); }}
-              className={`card rounded-2xl p-4 text-left transition hover:shadow-md ${
+              style={{ "--i": index } as React.CSSProperties}
+              className={`card card-stagger rounded-2xl p-4 text-left transition hover:shadow-md ${
                 active ? "border-brand ring-2 ring-brand/15" : "border-slate-200"
               }`}
             >
               <div className="text-sm font-medium text-slate-500">{card.label}</div>
-              <div className="mt-1 text-3xl font-bold tracking-tight text-slate-950">{count}</div>
+              <div className="mt-1 text-3xl font-bold tracking-tight text-slate-950"><CountUp value={count} /></div>
             </button>
           );
         })}

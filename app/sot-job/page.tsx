@@ -4,6 +4,7 @@ import SotJobTable from "@/components/sot/SotJobTable";
 import SotSyncButton from "@/components/jobs/SotSyncButton";
 import ClearSotDataButton from "@/components/sot/ClearSotDataButton";
 import { getSotJobData, getSotJobModelGroups } from "@/lib/sot-job-repo";
+import CountUp from "@/components/ui/CountUp";
 
 async function SotJobContent() {
   await connection();
@@ -26,10 +27,10 @@ async function SotJobContent() {
           ["Target model", data.totals.targets],
           ["Sudah cocok", data.totals.matched],
           ["Belum cocok", data.totals.unmatched],
-        ].map(([label, value]) => (
-          <div key={label} className="card p-4">
+        ].map(([label, value], index) => (
+          <div key={label} style={{ "--i": index } as React.CSSProperties} className="card card-stagger p-4">
             <div className="text-sm font-medium text-slate-500">{label}</div>
-            <div className="mt-1 text-3xl font-bold tracking-tight">{value}</div>
+            <div className="mt-1 text-3xl font-bold tracking-tight"><CountUp value={value as number} /></div>
           </div>
         ))}
       </section>
