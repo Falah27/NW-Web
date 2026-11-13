@@ -31,7 +31,7 @@ export default function SotIssueSyncButton({ disabled }: { disabled?: boolean })
       >
         {pending ? "Membaca dari SOT..." : "Sinkron issue SOT"}
       </button>
-      {notice && <Toast message={notice.text} tone={notice.ok ? "success" : "error"} onDismiss={dismissNotice} />}
+      {notice && <Toast key={notice.text} message={notice.text} tone={notice.ok ? "success" : "error"} onDismiss={dismissNotice} />}
     </div>
   );
 }

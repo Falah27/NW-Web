@@ -140,6 +140,7 @@ textarea:focus-visible,
 .drawer-overlay-in { animation: overlay-in 0.18s ease-out both; }
 .drawer-overlay-out { animation: overlay-out 0.2s ease-in both; }
 .filter-results-in { animation: filter-results-in 0.24s ease-out both; }
+.calendar-view-in { animation: calendar-view-in 0.2s ease-out both; }
 .filter-chip-in { animation: filter-chip-in 0.18s ease-out both; }
 .toast-in { animation: toast-in 0.28s cubic-bezier(.2,.8,.2,1) both; }
 .toast-out { animation: toast-out 0.2s ease-in both; }
@@ -163,6 +164,11 @@ textarea:focus-visible,
 @keyframes filter-results-in {
   from { opacity: 0.35; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes calendar-view-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes filter-chip-in {
@@ -200,6 +206,7 @@ textarea:focus-visible,
   .drawer-overlay-in,
   .drawer-overlay-out,
   .filter-results-in,
+  .calendar-view-in,
   .filter-chip-in,
   .toast-in,
   .toast-out,

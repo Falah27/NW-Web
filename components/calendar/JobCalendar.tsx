@@ -107,6 +107,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
   });
   const [selected, setSelected] = useState<Selected>(null);
   const [eventForm, setEventForm] = useState<{ date?: string } | null>(null);
+  const [calendarTransitioning, setCalendarTransitioning] = useState(false);
   const [deleting, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -231,7 +232,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
         </div>
       </div>
 
-      <div className="card p-4">
+      <div className={`${calendarTransitioning ? "calendar-view-in" : ""} card p-4`}>
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWorkWeek"
@@ -241,6 +242,10 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
           fixedWeekCount={false}
           events={calendarEvents}
           eventClick={onEventClick}
+          datesSet={() => {
+            setCalendarTransitioning(false);
+            window.requestAnimationFrame(() => setCalendarTransitioning(true));
+          }}
           eventClassNames={(arg) => {
             const selectedId =
               selected?.type === "job" ? `job-${selected.job.id}` :

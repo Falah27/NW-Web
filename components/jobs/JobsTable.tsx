@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useDeferredValue, useMemo, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Job, JobStatus } from "@/lib/types";
 import { computeStatus } from "@/lib/status";
 import StatusBadge from "@/components/StatusBadge";
@@ -64,17 +65,39 @@ function Select({
 }
 
 export default function JobsTable({ jobs, members, today }: { jobs: Job[]; members: string[]; today: string }) {
-  const [q, setQ] = useState("");
-  const [model, setModel] = useState(ALL);
-  const [mod, setMod] = useState(ALL);
-  const [stage, setStage] = useState(ALL);
-  const [pic, setPic] = useState(ALL);
-  const [status, setStatus] = useState(ALL);
-  const [showClosed, setShowClosed] = useState(false);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
+  const [model, setModel] = useState(() => searchParams.get("model") ?? ALL);
+  const [mod, setMod] = useState(() => searchParams.get("mod") ?? ALL);
+  const [stage, setStage] = useState(() => searchParams.get("stage") ?? ALL);
+  const [pic, setPic] = useState(() => searchParams.get("pic") ?? ALL);
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? ALL);
+  const [showClosed, setShowClosed] = useState(() => searchParams.get("showClosed") === "1");
   const [selected, setSelected] = useState<(Job & { status: JobStatus }) | null>(null);
   const [form, setForm] = useState<{ job: Job | null } | null>(null);
   const [, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deferredQ = useDeferredValue(q);
+
+  function updateUrl(name: string, value: string | boolean) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "" || value === ALL || value === false) params.delete(name);
+    else params.set(name, value === true ? "1" : value);
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
+
+  function setFilter(name: string, value: string) {
+    updateUrl(name, value);
+    if (name === "q") setQ(value);
+    if (name === "model") setModel(value);
+    if (name === "mod") setMod(value);
+    if (name === "stage") setStage(value);
+    if (name === "pic") setPic(value);
+    if (name === "status") setStatus(value);
+  }
 
   const withStatus = useMemo(
     () => jobs.map((j) => ({ ...j, status: computeStatus(j, today) })),
@@ -101,9 +124,9 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
     if (stage !== ALL && j.stage !== stage) return false;
     if (pic !== ALL && j.assignee !== pic) return false;
     if (status !== ALL && j.status !== status) return false;
-    if (q) {
+    if (deferredQ) {
       const text = `${j.jobItem} ${j.detail ?? ""}`.toLowerCase();
-      if (!text.includes(q.toLowerCase())) return false;
+      if (!text.includes(deferredQ.toLowerCase())) return false;
     }
     return true;
   });
@@ -126,7 +149,12 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
 
   function selectSummaryFilter(filter: string) {
     setStatus(filter);
-    if (filter === ALL || filter === "Closed") setShowClosed(true);
+    const revealClosed = filter === ALL || filter === "Closed";
+    if (revealClosed) setShowClosed(true);
+    const params = new URLSearchParams(searchParams.toString());
+    if (filter === ALL) params.delete("status"); else params.set("status", filter);
+    if (revealClosed) params.set("showClosed", "1");
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
   function clearFilters() {
@@ -137,9 +165,8 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
     setPic(ALL);
     setStatus(ALL);
     setShowClosed(false);
+    router.replace(pathname, { scroll: false });
   }
-
-  const filterKey = [q, model, mod, stage, pic, status, showClosed].join("|");
   const hasFilters = Boolean(q || model !== ALL || mod !== ALL || stage !== ALL || pic !== ALL || status !== ALL || showClosed);
 
   return (
@@ -167,19 +194,19 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
           Cari
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => setFilter("q", e.target.value)}
             placeholder="Job item atau detail"
             className="h-10 rounded-lg border border-slate-300 px-3 text-sm font-normal"
           />
         </label>
-        <Select label="Model" value={model} onChange={setModel} options={uniq("model")} allLabel="Semua model" />
-        <Select label="Modul" value={mod} onChange={setMod} options={uniq("module")} allLabel="Semua modul" />
-        <Select label="Stage" value={stage} onChange={setStage} options={uniq("stage")} allLabel="Semua stage" />
-        <Select label="PIC" value={pic} onChange={setPic} options={uniq("assignee")} allLabel="Semua PIC" />
+        <Select label="Model" value={model} onChange={(value) => setFilter("model", value)} options={uniq("model")} allLabel="Semua model" />
+        <Select label="Modul" value={mod} onChange={(value) => setFilter("mod", value)} options={uniq("module")} allLabel="Semua modul" />
+        <Select label="Stage" value={stage} onChange={(value) => setFilter("stage", value)} options={uniq("stage")} allLabel="Semua stage" />
+        <Select label="PIC" value={pic} onChange={(value) => setFilter("pic", value)} options={uniq("assignee")} allLabel="Semua PIC" />
         <Select
           label="Status"
           value={status}
-          onChange={setStatus}
+          onChange={(value) => setFilter("status", value)}
           options={["Running", "Open", "Over", "Closed"]}
           allLabel="Semua status"
         />
@@ -187,7 +214,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
           <input
             type="checkbox"
             checked={showClosed}
-            onChange={(e) => setShowClosed(e.target.checked)}
+            onChange={(e) => { setShowClosed(e.target.checked); updateUrl("showClosed", e.target.checked); }}
             className="h-4 w-4"
           />
           Tampilkan job selesai
@@ -197,13 +224,13 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
       {hasFilters && (
         <div className="flex flex-wrap items-center gap-2" aria-label="Filter aktif">
           <span className="text-xs font-semibold text-slate-500">Filter aktif:</span>
-          {q && <FilterChip label={`Cari: ${q}`} onRemove={() => setQ("")} />}
-          {model !== ALL && <FilterChip label={`Model: ${model}`} onRemove={() => setModel(ALL)} />}
-          {mod !== ALL && <FilterChip label={`Modul: ${mod}`} onRemove={() => setMod(ALL)} />}
-          {stage !== ALL && <FilterChip label={`Stage: ${stage}`} onRemove={() => setStage(ALL)} />}
-          {pic !== ALL && <FilterChip label={`PIC: ${pic}`} onRemove={() => setPic(ALL)} />}
-          {status !== ALL && <FilterChip label={`Status: ${status}`} onRemove={() => setStatus(ALL)} />}
-          {showClosed && <FilterChip label="Job selesai ditampilkan" onRemove={() => setShowClosed(false)} />}
+          {q && <FilterChip label={`Cari: ${q}`} onRemove={() => setFilter("q", "")} />}
+          {model !== ALL && <FilterChip label={`Model: ${model}`} onRemove={() => setFilter("model", ALL)} />}
+          {mod !== ALL && <FilterChip label={`Modul: ${mod}`} onRemove={() => setFilter("mod", ALL)} />}
+          {stage !== ALL && <FilterChip label={`Stage: ${stage}`} onRemove={() => setFilter("stage", ALL)} />}
+          {pic !== ALL && <FilterChip label={`PIC: ${pic}`} onRemove={() => setFilter("pic", ALL)} />}
+          {status !== ALL && <FilterChip label={`Status: ${status}`} onRemove={() => setFilter("status", ALL)} />}
+          {showClosed && <FilterChip label="Job selesai ditampilkan" onRemove={() => { setShowClosed(false); updateUrl("showClosed", false); }} />}
           <button type="button" onClick={clearFilters} className="px-2 text-xs font-semibold text-slate-500 transition hover:text-brand">
             Reset semua
           </button>
@@ -216,8 +243,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         </div>
       )}
 
-      <div key={filterKey} className="filter-results-in">
-        <div className="surface max-h-[58vh] overflow-auto rounded-xl shadow-sm">
+      <div className="surface hidden max-h-[58vh] overflow-auto rounded-xl shadow-sm md:block">
           <table className="data-table w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs text-slate-500">
@@ -252,6 +278,12 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         <p className="mt-3 text-sm text-slate-500">
           Menampilkan {filtered.length} job. Status dihitung otomatis dari progress dan tanggal.
         </p>
+
+      <div className="grid gap-3 md:hidden">
+        {filtered.map((job) => (
+          <MobileJobCard key={job.id} job={job} selectedId={selected?.id ?? null} onSelect={setSelected} />
+        ))}
+        {filtered.length === 0 && <div className="card p-8 text-center text-sm text-slate-500">Tidak ada job yang cocok dengan filter.</div>}
       </div>
       <JobDetailDrawer
         job={selected}
@@ -274,6 +306,39 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         />
       )}
     </div>
+  );
+}
+
+function MobileJobCard({
+  job,
+  selectedId,
+  onSelect,
+}: {
+  job: Job & { status: JobStatus };
+  selectedId: string | null;
+  onSelect: (job: Job & { status: JobStatus }) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(job)}
+      aria-current={selectedId === job.id ? "true" : undefined}
+      className={`card flex w-full flex-col gap-3 p-4 text-left transition ${selectedId === job.id ? "border-brand bg-brand-soft" : "hover:border-brand/40"}`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-slate-500">{job.model}</p>
+          <p className="mt-1 font-bold text-slate-900">{job.jobItem}</p>
+        </div>
+        <StatusBadge status={job.status} />
+      </div>
+      <div className="flex items-center gap-2 text-sm text-slate-600">
+        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-soft text-[11px] font-bold text-brand">{initials(job.assignee)}</span>
+        {job.assignee}
+      </div>
+      <ProgressBar value={job.progress} />
+      <p className="tabular-nums text-xs text-slate-500">{fmt(job.startDate)} – {fmt(job.endDate)}</p>
+    </button>
   );
 }
 
