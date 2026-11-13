@@ -14,6 +14,7 @@ import CalendarDetailDrawer, { type Selected } from "@/components/calendar/Calen
 import JobDetailDrawer from "@/components/jobs/JobDetailDrawer";
 import { deleteEventAction } from "@/app/calendar/actions";
 import { addDaysISO } from "@/lib/date";
+import EmptyState from "@/components/ui/EmptyState";
 
 const ALL = "all";
 type Palette = { bg: string; border: string; text: string };
@@ -282,6 +283,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
             right: "timeGridDay,timeGridWorkWeek,timeGridWeek,dayGridMonth",
           }}
         />
+        {calendarEvents.length === 0 && <EmptyState title="Belum ada agenda" description="Belum ada job atau event yang tampil pada filter ini." />}
       </div>
 
       <p className="text-xs text-slate-500">

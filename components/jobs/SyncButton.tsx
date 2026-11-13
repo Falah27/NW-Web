@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { syncExcelAction, type SyncState } from "@/app/jobs/sync-action";
 import Toast from "@/components/ui/Toast";
 import useDialogFocus from "@/components/ui/useDialogFocus";
@@ -10,6 +10,12 @@ const initialState: SyncState = { ok: false };
 
 export default function SyncButton() {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const openSync = () => setOpen(true);
+    window.addEventListener("open-excel-sync", openSync);
+    return () => window.removeEventListener("open-excel-sync", openSync);
+  }, []);
 
   return (
     <>

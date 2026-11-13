@@ -11,6 +11,7 @@ import JobFormDrawer from "@/components/jobs/JobFormDrawer";
 import { deleteJobAction } from "@/app/jobs/actions";
 import FilterChip from "@/components/ui/FilterChip";
 import CountUp from "@/components/ui/CountUp";
+import EmptyState from "@/components/ui/EmptyState";
 
 const ALL = "all";
 
@@ -167,6 +168,10 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
     setShowClosed(false);
     router.replace(pathname, { scroll: false });
   }
+
+  function requestImport() {
+    window.dispatchEvent(new Event("open-excel-sync"));
+  }
   const hasFilters = Boolean(q || model !== ALL || mod !== ALL || stage !== ALL || pic !== ALL || status !== ALL || showClosed);
 
   return (
@@ -258,7 +263,11 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
             {grouped.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-10 text-center text-slate-500">
-                  Tidak ada job yang cocok dengan filter.
+                  <EmptyState
+                    title={jobs.length === 0 ? "Belum ada job" : "Tidak ada job yang cocok"}
+                    description={jobs.length === 0 ? "Impor workbook Excel untuk mulai mengisi daftar job." : "Coba ubah kata kunci atau reset filter yang aktif."}
+                    action={jobs.length === 0 ? { label: "Impor Excel", onClick: requestImport } : { label: "Reset filter", onClick: clearFilters }}
+                  />
                 </td>
               </tr>
             )}
@@ -283,7 +292,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         {filtered.map((job) => (
           <MobileJobCard key={job.id} job={job} selectedId={selected?.id ?? null} onSelect={setSelected} />
         ))}
-        {filtered.length === 0 && <div className="card p-8 text-center text-sm text-slate-500">Tidak ada job yang cocok dengan filter.</div>}
+        {filtered.length === 0 && <div className="card"><EmptyState title={jobs.length === 0 ? "Belum ada job" : "Tidak ada job yang cocok"} description={jobs.length === 0 ? "Impor workbook Excel untuk mulai mengisi daftar job." : "Coba ubah kata kunci atau reset filter yang aktif."} action={jobs.length === 0 ? { label: "Impor Excel", onClick: requestImport } : { label: "Reset filter", onClick: clearFilters }} /></div>}
       </div>
       <JobDetailDrawer
         job={selected}

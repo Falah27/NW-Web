@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
 import { syncSotIssuesAction } from "@/app/sot-issues/actions";
 import Toast from "@/components/ui/Toast";
 
@@ -12,14 +12,20 @@ export default function SotIssueSyncButton({ disabled }: { disabled?: boolean })
 
   const dismissNotice = useCallback(() => setNotice(null), []);
 
-  function sync() {
+  const sync = useCallback(() => {
     setNotice(null);
     startTransition(async () => {
       const result = await syncSotIssuesAction();
       setNotice(result.ok ? { ok: true, text: result.message ?? "Selesai." } : { ok: false, text: result.error ?? "Gagal." });
       if (result.ok) router.refresh();
     });
-  }
+  }, [router, startTransition]);
+
+  useEffect(() => {
+    const openSync = () => { if (!pending && !disabled) sync(); };
+    window.addEventListener("open-sot-issue-sync", openSync);
+    return () => window.removeEventListener("open-sot-issue-sync", openSync);
+  }, [disabled, pending, sync]);
 
   return (
     <div className="flex flex-col items-end gap-1">

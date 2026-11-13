@@ -7,6 +7,7 @@ import { saveSotManualMappingAction } from "@/app/sot-job/actions";
 import type { SotJobModelGroup, SotJobProject } from "@/lib/sot-job-repo";
 import useDialogFocus from "@/components/ui/useDialogFocus";
 import useDialogTransition from "@/components/ui/useDialogTransition";
+import EmptyState from "@/components/ui/EmptyState";
 
 const ALL = "all";
 
@@ -191,7 +192,7 @@ export default function SotJobTable({ projects, modelGroups }: { projects: SotJo
               })}
             </tbody>
           </table>
-          {filtered.length === 0 && <p className="p-8 text-center text-sm text-slate-500">Tidak ada project sesuai filter.</p>}
+          {filtered.length === 0 && <EmptyState title="Tidak ada project yang cocok" description="Coba ubah kata kunci atau status mapping yang dipilih." />}
         </div>
       </section>
       {selectedProject && <ProjectDrawer project={selectedProject} modelGroups={modelGroups} onClose={() => setSelectedProject(null)} />}

@@ -1,8 +1,10 @@
+import EmptyState from "@/components/ui/EmptyState";
+
 export default function Page() {
   return (
-    <div>
+    <div className="flex flex-col gap-5">
       <h1 className="text-3xl font-bold tracking-tight">Dokumen</h1>
-      <p className="mt-2 text-slate-600">Fitur dokumen belum tersedia.</p>
+      <section className="card"><EmptyState title="Dokumen belum tersedia" description="Ruang dokumen team sedang disiapkan. Coba kembali setelah fitur ini dirilis." /></section>
     </div>
   );
 }

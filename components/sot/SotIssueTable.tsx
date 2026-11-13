@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { SotIssueColumn, SotIssueRow } from "@/lib/sot-issues-repo";
 import FilterChip from "@/components/ui/FilterChip";
 import CountUp from "@/components/ui/CountUp";
+import EmptyState from "@/components/ui/EmptyState";
 
 const ALL = "__all__";
 const PAGE = 25;
@@ -116,6 +117,10 @@ export default function SotIssueTable({
     setModel(ALL);
     setJudgement(ALL);
     setPage(1);
+  }
+
+  function requestSync() {
+    window.dispatchEvent(new Event("open-sot-issue-sync"));
   }
 
   return (
@@ -272,7 +277,11 @@ export default function SotIssueTable({
             {shown.length === 0 && (
               <tr>
                 <td colSpan={9 + columns.length} className="px-4 py-10 text-center text-slate-500">
-                  {issues.length === 0 ? "Belum ada data. Klik \"Sinkron issue SOT\"." : "Tidak ada issue yang cocok dengan pencarian."}
+                  <EmptyState
+                    title={issues.length === 0 ? "Belum ada issue" : "Tidak ada issue yang cocok"}
+                    description={issues.length === 0 ? "Sinkronkan issue dari SOT untuk mulai melihat datanya." : "Coba ubah pencarian atau reset filter yang aktif."}
+                    action={issues.length === 0 ? { label: "Sinkron issue SOT", onClick: requestSync } : { label: "Reset filter", onClick: clearFilters }}
+                  />
                 </td>
               </tr>
             )}
