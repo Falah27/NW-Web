@@ -27,7 +27,7 @@ async function SotJobContent() {
           ["Sudah cocok", data.totals.matched],
           ["Belum cocok", data.totals.unmatched],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div key={label} className="card p-4">
             <div className="text-sm font-medium text-slate-500">{label}</div>
             <div className="mt-1 text-3xl font-bold tracking-tight">{value}</div>
           </div>

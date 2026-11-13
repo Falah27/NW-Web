@@ -20,7 +20,7 @@ export default function Navbar() {
       <Link href="/jobs" className="shrink-0 text-xl font-bold tracking-tight text-slate-900">
         team<span className="ml-0.5 rounded-lg bg-brand px-2 text-white shadow-sm">hub</span>
       </Link>
-      <nav className="flex max-w-[calc(100%-8rem)] gap-1 overflow-x-auto rounded-full border border-white/30 bg-[#102535]/95 p-1.5 shadow-lg shadow-slate-900/15 backdrop-blur-md">
+      <nav className="glass flex max-w-[calc(100%-8rem)] gap-1 overflow-x-auto rounded-full bg-[#102535]/95 p-1.5 shadow-lg shadow-slate-900/15">
         {links.map((l) => {
           const active = pathname.startsWith(l.href);
           return (

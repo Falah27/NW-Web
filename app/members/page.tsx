@@ -23,7 +23,7 @@ async function MembersContent() {
     <>
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={s.label} className="card p-5">
             <div className="text-sm font-medium text-slate-500">{s.label}</div>
             <div className="mt-1 text-4xl font-bold tracking-tight">{s.value}</div>
           </div>
@@ -45,7 +45,7 @@ async function MembersContent() {
 export default function MembersPage() {
   return (
     <div className="flex flex-col gap-8">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white px-6 py-12 shadow-sm sm:px-12 sm:py-16">
+      <section className="card relative overflow-hidden px-6 py-12 sm:px-12 sm:py-16">
         <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-brand-soft" />
         <div className="pointer-events-none absolute -bottom-20 right-24 h-40 w-40 rounded-3xl bg-slate-100" />
         <div className="relative flex max-w-2xl flex-col gap-4">

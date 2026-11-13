@@ -129,7 +129,7 @@ export default function SotIssueTable({
               type="button"
               aria-pressed={active}
               onClick={() => { setJudgement(card.value); setPage(1); }}
-              className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              className={`card rounded-2xl p-4 text-left transition hover:shadow-md ${
                 active ? "border-brand ring-2 ring-brand/15" : "border-slate-200"
               }`}
             >
@@ -155,7 +155,7 @@ export default function SotIssueTable({
         </div>
       )}
 
-      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <section className="card overflow-hidden shadow-sm">
       <div className="flex flex-wrap items-end gap-3 border-b border-slate-200 bg-slate-50/70 p-4">
         <label className="min-w-[240px] flex-[1.5] text-xs font-semibold text-slate-600">
           Cari

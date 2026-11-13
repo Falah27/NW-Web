@@ -42,7 +42,7 @@ export default function Toast({
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setPaused(false); }}
-      className={`${closing ? "toast-out" : "toast-in"} fixed right-4 top-4 z-[70] flex max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl backdrop-blur ${
+      className={`glass ${closing ? "toast-out" : "toast-in"} fixed right-4 top-4 z-[70] flex max-w-sm items-start gap-3 rounded-2xl border px-4 py-3 text-sm shadow-xl ${
         tone === "error"
           ? "border-red-200 bg-red-50/95 text-red-900"
           : "border-emerald-200 bg-emerald-50/95 text-emerald-900"

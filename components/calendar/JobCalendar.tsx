@@ -201,7 +201,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
 
   return (
     <div className="flex flex-col gap-4" data-drawer-open={selected || eventForm ? "true" : "false"}>
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="card flex flex-col gap-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <select aria-label="Filter model" value={model} onChange={(event) => setModel(event.target.value)} className={selectClass}>
             <option value={ALL}>Semua model</option>
@@ -231,7 +231,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="card p-4">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="timeGridWorkWeek"

@@ -2,18 +2,36 @@
 
 @theme inline {
   --color-brand: #168ce5;
+  --color-brand-strong: #0b6fc2;
   --color-brand-soft: #e8f5ff;
-  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), -apple-system, "SF Pro Text", system-ui, sans-serif;
+}
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --border: #e3e7ed;
+  --border-strong: #cfd6df;
+  --text: #0f172a;
+  --text-2: #475569;
+  --text-3: #64748b;
+  --brand: #168ce5;
+  --brand-strong: #0b6fc2;
+  --brand-soft: #e8f5ff;
+  --surface-rgb: 255 255 255;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --shadow-1: 0 1px 2px rgb(15 23 42 / 0.06);
+  --shadow-2: 0 4px 16px rgb(15 23 42 / 0.08);
+  --shadow-3: 0 16px 40px rgb(15 23 42 / 0.16);
 }
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at 12% 8%, rgb(255 255 255 / 0.35), transparent 28rem),
-    linear-gradient(135deg, #91aec3 0%, #b5d0e1 48%, #8eabc1 100%);
-  background-size: 180% 180%;
-  color: #0f172a;
-  animation: background-drift 18s ease-in-out infinite alternate;
+  background: var(--bg);
+  color: var(--text);
 }
 
 .data-table {
@@ -39,13 +57,13 @@ body {
 .site-shell main input:not([type="checkbox"]),
 .site-shell main select,
 .site-shell main button {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
 
 .site-shell main input:not([type="checkbox"]):focus,
 .site-shell main select:focus {
-  border-color: #168ce5;
-  box-shadow: 0 0 0 4px rgb(22 140 229 / 0.12);
+  border-color: var(--brand-strong);
+  box-shadow: 0 0 0 3px rgb(11 111 194 / 0.14);
   outline: none;
 }
 
@@ -67,35 +85,29 @@ textarea:focus-visible,
   width: min(1600px, calc(100% - 32px));
   min-height: calc(100vh - 48px);
   margin: 24px auto;
-  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+.surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+
+.glass {
+  background: rgb(var(--surface-rgb) / 0.9);
   border: 1px solid rgb(255 255 255 / 0.55);
-  border-radius: 26px;
-  background: rgb(239 248 254 / 0.78);
-  box-shadow: 0 24px 60px rgb(31 67 91 / 0.18);
-  backdrop-filter: blur(16px);
-  transition: transform 0.28s ease-out;
-  animation: shell-enter 0.55s ease-out both;
-}
-
-/* Dashboard cards use a light glass surface while controls remain opaque. */
-.site-shell main [class*="rounded-2xl"][class*="bg-white"]:not([role="dialog"]),
-.site-shell main [class*="rounded-3xl"][class*="bg-white"]:not([role="dialog"]) {
-  border-color: rgb(255 255 255 / 0.75) !important;
-  background: rgb(255 255 255 / 0.58) !important;
-  box-shadow: 0 10px 26px rgb(53 92 116 / 0.08);
-  backdrop-filter: blur(12px);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease;
-  animation: card-enter 0.45s ease-out both;
-}
-
-.site-shell main [class*="rounded-2xl"][class*="bg-white"]:not([role="dialog"]):not(:has(.data-table)):hover,
-.site-shell main [class*="rounded-3xl"][class*="bg-white"]:not([role="dialog"]):not(:has(.data-table)):hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 32px rgb(53 92 116 / 0.13);
-}
-
-.site-shell:has([data-drawer-open="true"]) {
-  transform: translateX(clamp(-280px, -18vw, -180px));
+  box-shadow: var(--shadow-3), inset 0 1px 0 rgb(255 255 255 / 0.5);
+  backdrop-filter: blur(12px) saturate(1.4);
 }
 
 @keyframes drawer-in {
@@ -106,16 +118,6 @@ textarea:focus-visible,
 @keyframes drawer-out {
   from { transform: translateX(0); opacity: 1; }
   to { transform: translateX(24px); opacity: 0; }
-}
-
-@keyframes background-drift {
-  from { background-position: 0% 0%; }
-  to { background-position: 100% 100%; }
-}
-
-@keyframes shell-enter {
-  from { opacity: 0; transform: translateY(10px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes card-enter {
@@ -177,7 +179,6 @@ textarea:focus-visible,
 }
 @media (prefers-reduced-motion: reduce) {
   body,
-  .site-shell,
   .drawer-in,
   .drawer-out,
   .drawer-overlay-in,
@@ -187,10 +188,17 @@ textarea:focus-visible,
   .toast-in,
   .toast-out,
   .skeleton,
-  .site-shell main [class*="rounded-2xl"][class*="bg-white"],
-  .site-shell main [class*="rounded-3xl"][class*="bg-white"] {
+  .card,
+  .glass {
     animation: none;
     transition: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (max-width: 767px) {
+  .glass {
+    background: var(--surface);
+    backdrop-filter: none;
   }
 }
 
@@ -202,9 +210,10 @@ textarea:focus-visible,
     border-radius: 18px;
   }
 
-  .site-shell:has([data-drawer-open="true"]) {
-    transform: none;
-  }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .glass { background: var(--surface); }
 }
 
 /* Tailwind v4 tidak lagi memberi kursor tangan pada tombol secara bawaan */
@@ -224,15 +233,15 @@ textarea:focus-visible,
 
 /* FullCalendar */
 .fc {
-  --fc-border-color: #e2e8f0;
+  --fc-border-color: var(--border);
   --fc-today-bg-color: #eef2ff;
-  --fc-button-bg-color: #ffffff;
-  --fc-button-text-color: #0f172a;
-  --fc-button-border-color: #cbd5e1;
-  --fc-button-hover-bg-color: #f1f5f9;
-  --fc-button-hover-border-color: #cbd5e1;
-  --fc-button-active-bg-color: #0f172a;
-  --fc-button-active-border-color: #0f172a;
+  --fc-button-bg-color: var(--surface);
+  --fc-button-text-color: var(--text);
+  --fc-button-border-color: var(--border-strong);
+  --fc-button-hover-bg-color: var(--surface-2);
+  --fc-button-hover-border-color: var(--border-strong);
+  --fc-button-active-bg-color: var(--brand-strong);
+  --fc-button-active-border-color: var(--brand-strong);
   font-size: 14px;
 }
 .fc .fc-toolbar-title {

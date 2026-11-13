@@ -5,7 +5,7 @@ const styles: Record<JobStatus, string> = {
   Running: "bg-blue-50 text-blue-900 border-blue-300",
   Open: "bg-slate-100 text-slate-700 border-slate-300",
   Over: "bg-red-50 text-red-900 border-red-300",
-  "-": "bg-white text-slate-500 border-slate-300",
+  "-": "bg-white text-slate-600 border-slate-300",
 };
 
 export default function StatusBadge({ status, compact = false }: { status: JobStatus; compact?: boolean }) {

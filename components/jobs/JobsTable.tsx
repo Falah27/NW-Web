@@ -150,7 +150,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
             type="button"
             aria-pressed={status === s.filter}
             onClick={() => selectSummaryFilter(s.filter)}
-            className={`rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+            className={`card rounded-2xl p-4 text-left transition hover:shadow-md ${
               status === s.filter ? "border-brand ring-2 ring-brand/15" : "border-slate-200"
             }`}
           >
@@ -160,7 +160,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
         ))}
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="card flex flex-wrap items-end gap-3 p-4">
         <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-xs font-semibold text-slate-600">
           Cari
           <input
@@ -215,7 +215,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
       )}
 
       <div key={filterKey} className="filter-results-in">
-        <div className="max-h-[58vh] overflow-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="surface max-h-[58vh] overflow-auto rounded-xl shadow-sm">
           <table className="data-table w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="bg-slate-100 text-left text-xs text-slate-500">

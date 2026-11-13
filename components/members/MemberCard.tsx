@@ -17,7 +17,7 @@ export default function MemberCard({
   activeJobs: number;
 }) {
   return (
-    <article className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md">
+    <article className="card flex flex-col gap-4 p-6 transition hover:shadow-md">
       <div className="flex items-center gap-4">
         <div className="flex h-16 w-16 flex-none items-center justify-center rounded-full bg-brand-soft text-xl font-bold text-brand">
           {initials(member.name)}
