@@ -1,12 +1,10 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { saveSotManualMappingAction } from "@/app/sot-job/actions";
 import type { SotJobModelGroup, SotJobProject } from "@/lib/sot-job-repo";
-import useDialogFocus from "@/components/ui/useDialogFocus";
-import useDialogTransition from "@/components/ui/useDialogTransition";
+import Drawer, { DrawerBody, DrawerFooter, DrawerHeader, DrawerSection } from "@/components/ui/Drawer";
 import EmptyState from "@/components/ui/EmptyState";
 
 const ALL = "all";
@@ -31,8 +29,7 @@ function ProjectDrawer({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const { closing, requestClose } = useDialogTransition({ onClose });
-  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose: requestClose });
+  const requestClose = onClose;
 
   function save(sourceName: string, value: string) {
     setError(null);
@@ -47,34 +44,17 @@ function ProjectDrawer({
     });
   }
 
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} fixed inset-0 z-50 flex justify-end bg-slate-900/30`} onClick={requestClose}>
-      <aside
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Detail project ${project.projectName}`}
-        className={`${closing ? "drawer-out" : "drawer-in"} h-full w-full max-w-xl overflow-y-auto bg-white p-6 shadow-xl`}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-500">{project.fy}</p>
-            <h2 className="text-2xl font-bold">{project.projectName}</h2>
-            <p className="mt-1 text-sm text-slate-500">Diperbarui {formatDate(project.updatedAt)}</p>
-          </div>
-          <button type="button" onClick={requestClose} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold">
-            Tutup
-          </button>
-        </div>
+  return (
+    <Drawer onClose={onClose} label={`Detail project ${project.projectName}`} size="lg">
+        <DrawerHeader eyebrow={project.fy} title={project.projectName} onClose={requestClose}>
+          <p className="mt-1 text-sm text-slate-500">Diperbarui {formatDate(project.updatedAt)}</p>
+        </DrawerHeader>
+        <DrawerBody>
         <a href={project.projectLink} target="_blank" rel="noreferrer" className="mt-4 inline-block text-sm font-semibold text-brand hover:underline">
           Buka project di SOT ↗
         </a>
         {error && <p role="alert" className="mt-4 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>}
-        <section className="mt-6">
-          <h3 className="text-lg font-bold">Target model dan mapping</h3>
+        <DrawerSection title="Target model dan mapping">
           {project.targets.length === 0 ? (
             <p className="mt-3 rounded-lg bg-slate-50 p-4 text-sm text-slate-500">Project ini belum memiliki target model.</p>
           ) : (
@@ -102,10 +82,10 @@ function ProjectDrawer({
               ))}
             </div>
           )}
-        </section>
-      </aside>
-    </div>,
-    document.body
+        </DrawerSection>
+        </DrawerBody>
+        <DrawerFooter><button type="button" onClick={requestClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">Tutup</button></DrawerFooter>
+    </Drawer>
   );
 }
 

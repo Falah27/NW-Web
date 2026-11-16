@@ -294,7 +294,7 @@ export default function JobCalendar({ jobs, events, today }: { jobs: Job[]; even
       {selected?.type === "job" ? (
         <JobDetailDrawer job={{ ...selected.job, status: selected.status }} today={today} onClose={() => setSelected(null)} />
       ) : (
-        <CalendarDetailDrawer selected={selected} onClose={() => setSelected(null)} onDeleteEvent={handleDeleteEvent} deleting={deleting} deleteError={deleteError} />
+        <CalendarDetailDrawer selected={selected} onClose={() => setSelected(null)} onDeleteEvent={handleDeleteEvent} deleting={deleting} deleteError={deleteError} today={today} />
       )}
       {eventForm && <EventFormDrawer defaultDate={eventForm.date} onClose={() => setEventForm(null)} />}
     </div>

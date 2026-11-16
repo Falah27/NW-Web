@@ -43,7 +43,7 @@ function SyncDialog({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={() => !pending && requestClose()} aria-hidden="true" />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sinkron dari Excel" className={`${closing ? "drawer-out" : "drawer-in"} relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl`}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Sinkron dari Excel" className={`${closing ? "modal-out" : "modal-in"} relative w-full max-w-md rounded-2xl bg-white p-6 shadow-xl`}>
         <h2 className="text-xl font-bold">Sinkron dari Excel</h2>
         <p className="mt-1 text-sm text-slate-500">
           Unggah workbook FY26 (.xlsm atau .xlsx). Job hasil import sebelumnya akan diganti dengan isi file ini.

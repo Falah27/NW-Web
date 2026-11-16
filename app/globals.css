@@ -209,6 +209,16 @@ textarea:focus-visible,
   to { transform: translateX(24px); opacity: 0; }
 }
 
+@keyframes modal-in {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes modal-out {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.96); opacity: 0; }
+}
+
 @keyframes card-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -216,6 +226,8 @@ textarea:focus-visible,
 
 .drawer-in { animation: drawer-in 0.22s ease-out; }
 .drawer-out { animation: drawer-out 0.2s ease-in both; }
+.modal-in { animation: modal-in 0.18s ease-out; }
+.modal-out { animation: modal-out 0.16s ease-in both; }
 .drawer-overlay-in { animation: overlay-in 0.18s ease-out both; }
 .drawer-overlay-out { animation: overlay-out 0.2s ease-in both; }
 .filter-results-in { animation: filter-results-in 0.24s ease-out both; }
@@ -282,6 +294,8 @@ textarea:focus-visible,
   body,
   .drawer-in,
   .drawer-out,
+  .modal-in,
+  .modal-out,
   .drawer-overlay-in,
   .drawer-overlay-out,
   .filter-results-in,

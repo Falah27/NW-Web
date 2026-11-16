@@ -4,24 +4,9 @@ import { startTransition, useActionState, useEffect } from "react";
 import type { Job } from "@/lib/types";
 import { saveJobAction, type FormState } from "@/app/jobs/actions";
 import { SOT_ERROR, SOT_HTML_PATTERN } from "@/lib/sot";
-import useDialogFocus from "@/components/ui/useDialogFocus";
-import useDialogTransition from "@/components/ui/useDialogTransition";
+import Drawer, { DrawerBody, DrawerFooter, DrawerHeader, FormField, inputClass, textareaClass } from "@/components/ui/Drawer";
 
 const initialState: FormState = { ok: false };
-
-const inputClass =
-  "h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-900";
-const textareaClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
-      {label}
-      {children}
-    </label>
-  );
-}
 
 export default function JobFormDrawer({
   job,
@@ -39,8 +24,7 @@ export default function JobFormDrawer({
   onClose: () => void;
 }) {
   const [state, formAction, pending] = useActionState(saveJobAction, initialState);
-  const { closing, requestClose } = useDialogTransition({ onClose });
-  const dialogRef = useDialogFocus<HTMLElement>({ open: true, onClose: requestClose });
+  const requestClose = onClose;
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -53,16 +37,10 @@ export default function JobFormDrawer({
   }, [state.ok, requestClose]);
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={requestClose} aria-hidden="true" />
-      <aside
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={job ? "Edit job" : "Tambah job"}
-        className={`${closing ? "drawer-out" : "drawer-in"} absolute right-0 top-0 flex h-full w-full max-w-lg flex-col overflow-y-auto bg-white p-6 shadow-xl`}
-      >
-        <div className="mb-5 flex items-start justify-between gap-4">
+    <Drawer onClose={onClose} label={job ? "Edit job" : "Tambah job"} size="md">
+      <DrawerHeader title={job ? "Edit job" : "Tambah job"} onClose={requestClose} />
+      <DrawerBody>
+        <div className="hidden">
           <h2 className="text-xl font-bold">{job ? "Edit job" : "Tambah job"}</h2>
           <button
             type="button"
@@ -74,24 +52,24 @@ export default function JobFormDrawer({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form id="job-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
           {job && <input type="hidden" name="id" value={job.id} />}
 
-          <Field label="Model *">
+          <FormField label="Model *">
             <input name="model" list="dl-models" required defaultValue={job?.model ?? ""} className={inputClass} />
-          </Field>
+          </FormField>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Modul">
+            <FormField label="Modul">
               <input name="module" list="dl-modules" defaultValue={job?.module ?? ""} className={inputClass} />
-            </Field>
-            <Field label="Stage">
+            </FormField>
+            <FormField label="Stage">
               <input name="stage" list="dl-stages" defaultValue={job?.stage ?? ""} className={inputClass} />
-            </Field>
+            </FormField>
           </div>
-          <Field label="Job item *">
+          <FormField label="Job item *">
             <input name="jobItem" required defaultValue={job?.jobItem ?? ""} className={inputClass} />
-          </Field>
-          <Field label="PIC *">
+          </FormField>
+          <FormField label="PIC *">
             <select name="assignee" required defaultValue={job?.assignee ?? ""} className={inputClass}>
               <option value="" disabled>
                 Pilih PIC
@@ -102,15 +80,15 @@ export default function JobFormDrawer({
                 </option>
               ))}
             </select>
-          </Field>
+          </FormField>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Start date">
+            <FormField label="Start date">
               <input type="date" name="startDate" defaultValue={job?.startDate ?? ""} className={inputClass} />
-            </Field>
-            <Field label="End date">
+            </FormField>
+            <FormField label="End date">
               <input type="date" name="endDate" defaultValue={job?.endDate ?? ""} className={inputClass} />
-            </Field>
-            <Field label="Progress (%)">
+            </FormField>
+            <FormField label="Progress (%)">
               <input
                 type="number"
                 name="progress"
@@ -120,10 +98,10 @@ export default function JobFormDrawer({
                 defaultValue={job ? Math.round(job.progress * 100) : 0}
                 className={inputClass}
               />
-            </Field>
+            </FormField>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="SOT No">
+            <FormField label="SOT No">
               <input
                 name="sotNo"
                 defaultValue={job?.sotNo ?? ""}
@@ -134,17 +112,17 @@ export default function JobFormDrawer({
                 title={SOT_ERROR}
                 className={inputClass}
               />
-            </Field>
-            <Field label="SOT Status">
+            </FormField>
+            <FormField label="SOT Status">
               <input name="sotStatus" defaultValue={job?.sotStatus ?? ""} className={inputClass} />
-            </Field>
+            </FormField>
           </div>
-          <Field label="Detail job">
+          <FormField label="Detail job">
             <textarea name="detail" rows={3} defaultValue={job?.detail ?? ""} className={textareaClass} />
-          </Field>
-          <Field label="Remarks">
+          </FormField>
+          <FormField label="Remarks">
             <textarea name="remarks" rows={3} defaultValue={job?.remarks ?? ""} className={textareaClass} />
-          </Field>
+          </FormField>
 
           <datalist id="dl-models">{models.map((m) => <option key={m} value={m} />)}</datalist>
           <datalist id="dl-modules">{modules.map((m) => <option key={m} value={m} />)}</datalist>
@@ -156,7 +134,7 @@ export default function JobFormDrawer({
             </p>
           )}
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="hidden">
             <button
               type="button"
               onClick={requestClose}
@@ -173,7 +151,8 @@ export default function JobFormDrawer({
             </button>
           </div>
         </form>
-      </aside>
-    </div>
+      </DrawerBody>
+      <DrawerFooter><button type="button" onClick={requestClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">Batal</button><button form="job-form" type="submit" disabled={pending} className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">{pending ? "Menyimpan..." : "Simpan"}</button></DrawerFooter>
+    </Drawer>
   );
 }

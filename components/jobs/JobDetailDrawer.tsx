@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
-import type { Job, JobStatus } from "@/lib/types";
+import type { Job } from "@/lib/types";
 import { diffDaysISO } from "@/lib/date";
-import useDialogFocus from "@/components/ui/useDialogFocus";
-import useDialogTransition from "@/components/ui/useDialogTransition";
+import Drawer, { DrawerBody, DrawerFooter, DrawerHeader } from "@/components/ui/Drawer";
+import JobStatusCard, { statusTheme, type JobWithStatus } from "@/components/jobs/JobStatusCard";
 
-type JobWithStatus = Job & { status: JobStatus };
 
 const clamp = (n: number, min = 0, max = 100) => Math.min(max, Math.max(min, n));
 
@@ -28,65 +26,6 @@ function initials(name: string) {
     .map((word) => word[0])
     .join("")
     .toUpperCase();
-}
-
-const theme: Record<
-  JobStatus,
-  { label: string; strip: string; dot: string; soft: string; text: string; bar: string }
-> = {
-  Running: {
-    label: "Sedang berjalan",
-    strip: "bg-blue-600",
-    dot: "bg-blue-600",
-    soft: "bg-blue-50",
-    text: "text-blue-900",
-    bar: "bg-blue-600",
-  },
-  Open: {
-    label: "Belum mulai",
-    strip: "bg-slate-400",
-    dot: "bg-slate-500",
-    soft: "bg-slate-100",
-    text: "text-slate-800",
-    bar: "bg-slate-500",
-  },
-  Over: {
-    label: "Lewat deadline",
-    strip: "bg-red-600",
-    dot: "bg-red-600",
-    soft: "bg-red-50",
-    text: "text-red-900",
-    bar: "bg-red-600",
-  },
-  Closed: {
-    label: "Selesai",
-    strip: "bg-emerald-600",
-    dot: "bg-emerald-600",
-    soft: "bg-emerald-50",
-    text: "text-emerald-900",
-    bar: "bg-emerald-600",
-  },
-  "-": {
-    label: "Jadwal belum lengkap",
-    strip: "bg-slate-300",
-    dot: "bg-slate-400",
-    soft: "bg-slate-100",
-    text: "text-slate-700",
-    bar: "bg-slate-400",
-  },
-};
-
-function timeHint(job: JobWithStatus, today: string): string {
-  if (!job.startDate || !job.endDate) return "Isi Start Date dan End Date di Excel";
-  if (job.status === "Closed") return "Semua pekerjaan sudah selesai";
-  if (job.status === "Open") {
-    const n = diffDaysISO(today, job.startDate);
-    return n === 1 ? "Mulai besok" : `Mulai ${n} hari lagi`;
-  }
-  const left = diffDaysISO(today, job.endDate);
-  if (left > 0) return `Sisa ${left} hari sampai deadline`;
-  if (left === 0) return "Deadline hari ini";
-  return `Terlambat ${Math.abs(left)} hari`;
 }
 
 type StepState = "done" | "current" | "late" | "todo";
@@ -131,20 +70,20 @@ function Footer({
 
   if (!onEdit && !onDelete) {
     return (
-      <footer className="flex flex-none gap-2 border-t border-slate-200 bg-white px-6 py-4">
+      <DrawerFooter>
         <Link href="/jobs" className="flex h-10 flex-1 items-center justify-center rounded-lg bg-brand text-sm font-semibold text-white transition hover:opacity-90">
           Ubah di Monitoring Job
         </Link>
         <button type="button" onClick={onClose} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold transition hover:bg-slate-50">
           Tutup
         </button>
-      </footer>
+      </DrawerFooter>
     );
   }
 
   if (confirming) {
     return (
-      <footer className="flex flex-none flex-col gap-3 border-t border-red-200 bg-red-50 px-6 py-4">
+      <DrawerFooter className="flex-col gap-3 border-red-200 bg-red-50">
         <p className="text-sm text-red-900">Hapus <b>{job.jobItem}</b>? Job yang dihapus tidak bisa dikembalikan.</p>
         <div className="flex gap-2">
           <button
@@ -166,15 +105,15 @@ function Footer({
             Batal
           </button>
         </div>
-      </footer>
+      </DrawerFooter>
     );
   }
 
   return (
-    <footer className="flex flex-none gap-2 border-t border-slate-200 bg-white px-6 py-4">
+    <DrawerFooter>
       {onEdit && <button type="button" onClick={() => onEdit(job)} className="h-10 flex-1 rounded-lg bg-brand text-sm font-semibold text-white transition hover:opacity-90">Edit job</button>}
       {onDelete && <button type="button" onClick={() => setConfirming(true)} className="h-10 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-600 transition hover:bg-red-50">Hapus</button>}
-    </footer>
+    </DrawerFooter>
   );
 }
 
@@ -191,12 +130,9 @@ export default function JobDetailDrawer({
   onDelete?: (job: Job) => void | Promise<void>;
   today: string;
 }) {
-  const { closing, requestClose } = useDialogTransition({ onClose });
-  const dialogRef = useDialogFocus<HTMLElement>({ open: Boolean(job), onClose: requestClose });
-
   if (!job || typeof document === "undefined") return null;
 
-  const t = theme[job.status];
+  const t = statusTheme[job.status];
   const pct = Math.round(job.progress * 100);
   const hasDates = !!job.startDate && !!job.endDate;
   const totalDays = hasDates ? diffDaysISO(job.startDate!, job.endDate!) + 1 : null;
@@ -225,24 +161,9 @@ export default function JobDetailDrawer({
       ]
     : [];
 
-  return createPortal(
-    <div className="fixed inset-0 z-50">
-      <div className={`${closing ? "drawer-overlay-out" : "drawer-overlay-in"} absolute inset-0 bg-slate-900/30`} onClick={requestClose} aria-hidden="true" />
-      <aside
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Detail job ${job.jobItem}`}
-        className={`${closing ? "drawer-out" : "drawer-in"} absolute right-0 top-0 flex h-full w-full max-w-[440px] flex-col overflow-hidden bg-white shadow-2xl sm:right-3 sm:top-3 sm:h-[calc(100%-1.5rem)] sm:rounded-3xl`}
-      >
-        <div className={`h-1.5 flex-none ${t.strip}`} />
-        <div className="flex-1 overflow-y-auto">
-          <header className="flex items-start justify-between gap-4 px-6 pb-5 pt-5">
-            <div className="min-w-0">
-              <span className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
-                {job.model}
-              </span>
-              <h2 className="mt-2 text-2xl font-bold leading-tight tracking-tight text-slate-900">{job.jobItem}</h2>
+  return (
+    <Drawer onClose={onClose} label={`Detail job ${job.jobItem}`} size="md" strip={t.strip}>
+          <DrawerHeader eyebrow={job.model} title={job.jobItem} onClose={onClose}>
               <div className="mt-3 flex items-center gap-2.5">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-xs font-bold text-brand">
                   {initials(job.assignee)}
@@ -252,29 +173,13 @@ export default function JobDetailDrawer({
                   <div className="text-xs text-slate-500">Penanggung jawab</div>
                 </div>
               </div>
-            </div>
-            <button type="button" onClick={requestClose} aria-label="Tutup detail" className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-slate-200 text-lg text-slate-600 transition hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-brand">
+            <button type="button" onClick={onClose} aria-label="Tutup" className="hidden">
               ×
             </button>
-          </header>
+          </DrawerHeader>
 
-          <div className="flex flex-col gap-6 px-6 pb-6">
-            <section className={`rounded-2xl p-4 ${t.soft}`}>
-              <div className="flex items-center justify-between gap-3">
-                <span className={`flex items-center gap-2 text-sm font-bold ${t.text}`}>
-                  <i className={`h-2.5 w-2.5 rounded-full ${t.dot}`} />
-                  {t.label}
-                </span>
-                <span className={`text-sm font-medium ${t.text}`}>{timeHint(job, today)}</span>
-              </div>
-              <div className="mt-4 flex items-end justify-between">
-                <span className="text-sm text-slate-600">Progress</span>
-                <span className={`text-3xl font-bold leading-none tracking-tight ${t.text}`}>{pct}%</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/80" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                <div className={`h-full rounded-full ${t.bar}`} style={{ width: `${pct}%` }} />
-              </div>
-            </section>
+          <DrawerBody>
+            <JobStatusCard job={job} today={today} />
 
             <section>
               <h3 className="text-sm font-bold text-slate-900">Jadwal</h3>
@@ -342,12 +247,9 @@ export default function JobDetailDrawer({
                 </ol>
               </section>
             )}
-          </div>
-        </div>
+          </DrawerBody>
 
-        <Footer key={job.id} job={job} onClose={requestClose} onEdit={onEdit} onDelete={onDelete} />
-      </aside>
-    </div>,
-    document.body
+        <Footer key={job.id} job={job} onClose={onClose} onEdit={onEdit} onDelete={onDelete} />
+    </Drawer>
   );
 }

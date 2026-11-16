@@ -135,7 +135,7 @@ export default function SotSyncButton() {
             role="dialog"
             aria-modal="true"
             aria-label="Sinkron project SOT"
-            className={`${closing ? "drawer-out" : "drawer-in"} relative flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl`}
+            className={`${closing ? "modal-out" : "modal-in"} relative flex max-h-[90vh] w-full max-w-xl flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-xl`}
           >
             <div>
               <h2 className="text-xl font-bold">Sinkron project SOT</h2>

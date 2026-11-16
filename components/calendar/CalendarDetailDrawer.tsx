@@ -7,6 +7,8 @@ import ProgressBar from "@/components/ProgressBar";
 import type { Job } from "@/lib/types";
 import useDialogFocus from "@/components/ui/useDialogFocus";
 import useDialogTransition from "@/components/ui/useDialogTransition";
+import Drawer, { DrawerBody, DrawerFooter, DrawerHeader, DrawerSection } from "@/components/ui/Drawer";
+import JobStatusCard, { type JobWithStatus } from "@/components/jobs/JobStatusCard";
 
 export type Selected =
   | { type: "job"; job: Job; status: JobStatus }
@@ -45,7 +47,7 @@ function TimelineItem({ icon, title, description, active = false, last = false }
   );
 }
 
-export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent, deleting, deleteError }: {
+export function LegacyCalendarDetailDrawer({ selected, onClose, onDeleteEvent, deleting, deleteError }: {
   selected: Selected;
   onClose: () => void;
   onDeleteEvent: (event: TeamEvent) => void;
@@ -123,5 +125,43 @@ export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent,
       </aside>
     </div>,
     document.body
+  );
+}
+
+export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent, deleting, deleteError, today }: {
+  selected: Selected;
+  onClose: () => void;
+  onDeleteEvent: (event: TeamEvent) => void;
+  deleting: boolean;
+  deleteError: string | null;
+  today?: string;
+}) {
+  if (!selected) return null;
+  const isJob = selected.type === "job";
+  const title = isJob ? selected.job.jobItem : selected.event.title;
+  const eyebrow = isJob ? selected.job.model : KIND_LABEL[selected.event.kind];
+  const currentToday = today ?? new Date().toISOString().slice(0, 10);
+
+  return (
+    <Drawer onClose={onClose} label={`Detail ${isJob ? "job" : "event"} ${title}`} size="md">
+      <DrawerHeader eyebrow={eyebrow} title={title} onClose={onClose}>
+        {isJob && <p className="mt-3 text-sm font-semibold text-slate-600">{selected.job.assignee || "Tanpa PIC"}</p>}
+      </DrawerHeader>
+      <DrawerBody>
+        {isJob ? (
+          <>
+            <JobStatusCard job={{ ...selected.job, status: selected.status } as JobWithStatus} today={currentToday} />
+            <DrawerSection title="Informasi"><dl className="grid grid-cols-2 gap-4 rounded-2xl border border-slate-200 p-4"><div><dt className="text-xs text-slate-500">Modul</dt><dd className="text-sm font-semibold text-slate-900">{selected.job.module || "-"}</dd></div><div><dt className="text-xs text-slate-500">Stage</dt><dd className="text-sm font-semibold text-slate-900">{selected.job.stage || "-"}</dd></div></dl></DrawerSection>
+            <DrawerSection title="Detail pekerjaan"><p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{selected.job.detail || <span className="text-slate-400">Belum ada detail.</span>}</p></DrawerSection>
+          </>
+        ) : (
+          <DrawerSection title="Detail event"><dl className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4"><div><dt className="text-xs text-slate-500">Jenis</dt><dd className="text-sm font-semibold text-slate-900">{KIND_LABEL[selected.event.kind]}</dd></div><div><dt className="text-xs text-slate-500">Mulai</dt><dd className="text-sm font-semibold text-slate-900">{fmtDate(selected.event.start)}</dd></div>{selected.event.end && <div><dt className="text-xs text-slate-500">Selesai</dt><dd className="text-sm font-semibold text-slate-900">{fmtDate(selected.event.end)}</dd></div>}</dl></DrawerSection>
+        )}
+        {deleteError && <p role="alert" className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-900">{deleteError}</p>}
+      </DrawerBody>
+      <DrawerFooter>
+        {isJob ? <button type="button" onClick={onClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">Tutup</button> : <><button type="button" onClick={onClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">Tutup</button><button type="button" onClick={() => onDeleteEvent(selected.event)} disabled={deleting} className="h-10 flex-1 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60">{deleting ? "Menghapus..." : "Hapus event"}</button></>}
+      </DrawerFooter>
+    </Drawer>
   );
 }
