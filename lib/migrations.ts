@@ -55,4 +55,21 @@ export function runMigrations(db: DatabaseSync): void {
     addColumn(db, "jobs", "locally_modified", "INTEGER NOT NULL DEFAULT 0");
     db.exec("PRAGMA user_version = 4");
   }
+  if (Number((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version) < 5) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS document_links (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL CHECK (length(title) BETWEEN 1 AND 120),
+        description TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'Lainnya',
+        url TEXT NOT NULL CHECK (length(url) <= 2048),
+        is_primary INTEGER NOT NULL DEFAULT 0 CHECK (is_primary IN (0, 1)),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS document_links_category_idx ON document_links (category, sort_order, title);
+      PRAGMA user_version = 5;
+    `);
+  }
 }
