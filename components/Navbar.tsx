@@ -39,10 +39,6 @@ export default function Navbar() {
     };
   }, [pathname]);
 
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
-
   return (
     <header className="relative mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
       <Link href="/jobs" className="shrink-0 text-xl font-bold tracking-tight text-slate-900">
@@ -70,6 +66,7 @@ export default function Navbar() {
                 <Link
                   key={link.href}
                   href={link.href}
+                  onClick={() => setMobileOpen(false)}
                   aria-current={active ? "page" : undefined}
                   className={`block rounded-lg px-3 py-2.5 text-sm font-semibold transition ${active ? "bg-brand text-white" : "text-slate-700 hover:bg-slate-50"}`}
                 >

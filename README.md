@@ -30,7 +30,20 @@ Pada impor pertama setelah pembaruan ID, job lama dengan ID `excel-<baris>` dian
 dan akan diganti dengan ID stabil berbasis isi baris.
 
 > Catatan: `npm run db:init` menghapus dan membuat ulang `data/dev.db`.
-> Jalankan hanya sekali di awal, bukan sebelum setiap import.
+> Jalankan hanya sekali di awal, atau gunakan `--force` jika memang ingin membuat ulang database.
+
+## Roadmap & database
+
+Roadmap disimpan dalam tiga tabel SQLite: `roadmap_models`, `milestone_categories`, dan `milestones`.
+Data roadmap tidak terhubung wajib ke tabel job dan tidak ikut terhapus saat import workbook XLSM.
+
+```powershell
+npm run db:migrate
+```
+
+Migrasi aman dijalankan berulang. Pada migrasi pertama, data model, kategori, dan milestone awal
+diambil dari `docs/reference/roadmap_models 1.html`. Migrasi tidak menghapus atau menimpa roadmap
+yang sudah disimpan.
 
 ## Sinkronisasi project SOT
 

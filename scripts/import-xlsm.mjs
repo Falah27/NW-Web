@@ -139,7 +139,7 @@ const getOrCreate = (table, name, extraColumn = null, extraValue = null) => {
 
 db.exec("BEGIN IMMEDIATE");
 try {
-  db.exec("DELETE FROM jobs; DELETE FROM model_groups; DELETE FROM modules; DELETE FROM stages;");
+  db.exec("DELETE FROM jobs;");
 
   const insertJob = db.prepare(`
     INSERT INTO jobs (
@@ -169,7 +169,7 @@ try {
     );
   }
   db.exec(`
-    DELETE FROM model_groups WHERE id NOT IN (SELECT model_group_id FROM jobs);
+    DELETE FROM members WHERE id NOT IN (SELECT assignee_id FROM jobs WHERE assignee_id IS NOT NULL);
     DELETE FROM modules WHERE id NOT IN (SELECT module_id FROM jobs WHERE module_id IS NOT NULL);
     DELETE FROM stages WHERE id NOT IN (SELECT stage_id FROM jobs WHERE stage_id IS NOT NULL);
   `);
@@ -206,7 +206,9 @@ function dateValue(value) {
   if (value === null || value === undefined || value === "") return null;
   if (typeof value === "number" && Number.isFinite(value)) {
     if (value < 1) return null;
-    return new Date(Date.UTC(1899, 11, 30) + Math.floor(value) * 86_400_000).toISOString().slice(0, 10);
+    const date = new Date(1899, 11, 30);
+    date.setDate(date.getDate() + Math.floor(value));
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
   }
   const str = String(value).trim();
   const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);

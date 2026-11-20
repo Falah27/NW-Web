@@ -4,6 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { runMigrations } from "../lib/migrations.ts";
 import { jobs } from "../lib/mock-data.ts";
 import { members } from "../lib/mock-members.ts";
+import { applySchema } from "./schema.mjs";
+import { seedRoadmap } from "./migrate-db.mjs";
 
 const force = process.argv.includes("--force");
 const seedDemo = process.argv.includes("--seed-demo");
@@ -12,13 +14,15 @@ const file = path.resolve(process.env.DATABASE_PATH ?? path.join(dir, "dev.db"))
 
 fs.mkdirSync(path.dirname(file), { recursive: true });
 if (fs.existsSync(file) && !force) {
-  throw new Error(`Database already exists at ${file}. Use --force only if you intend to replace it.`);
+  throw new Error(`Database sudah ada di ${file}. Tambahkan --force hanya jika memang ingin menghapus dan membuat ulang.`);
 }
 if (force && fs.existsSync(file)) fs.rmSync(file);
 
 const db = new DatabaseSync(file);
 db.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+applySchema(db);
 runMigrations(db);
+seedRoadmap(db);
 
 if (seedDemo) {
   const idOf = (table, name) => {
