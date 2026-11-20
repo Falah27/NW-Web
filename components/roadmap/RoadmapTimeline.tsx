@@ -26,8 +26,9 @@ import {
 } from "./ui";
 
 const INITIAL_DAY_WIDTH = 42;
-const MIN_DAY_WIDTH = 14;
-const MAX_DAY_WIDTH = 70;
+const MIN_DAY_WIDTH = 8;
+const MAX_DAY_WIDTH = 84;
+const DAY_WIDTH_STEP = 6;
 
 type Props = {
   models: RoadmapModel[];
@@ -186,7 +187,7 @@ export default function RoadmapTimeline({
         <div role="group" aria-label="Zoom timeline" className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white">
           <button
             type="button"
-            onClick={() => setDayWidth((width) => Math.max(MIN_DAY_WIDTH, width - 7))}
+            onClick={() => setDayWidth((width) => Math.max(MIN_DAY_WIDTH, width - DAY_WIDTH_STEP))}
             aria-label="Perkecil timeline"
             className="h-10 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >
@@ -197,7 +198,7 @@ export default function RoadmapTimeline({
           </span>
           <button
             type="button"
-            onClick={() => setDayWidth((width) => Math.min(MAX_DAY_WIDTH, width + 7))}
+            onClick={() => setDayWidth((width) => Math.min(MAX_DAY_WIDTH, width + DAY_WIDTH_STEP))}
             aria-label="Perbesar timeline"
             className="h-10 border-l border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
           >

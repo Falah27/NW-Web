@@ -69,6 +69,12 @@ function NativeDialog({
         event.preventDefault();
         onClose();
       }}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onClose();
+        }
+      }}
       onClick={handleBackdropClick}
     >
       {children}
