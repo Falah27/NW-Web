@@ -13,7 +13,7 @@ export const inputClass =
 export const labelClass = "flex flex-col gap-1 text-xs font-semibold text-slate-600";
 
 export const dialogClass =
-  "w-[calc(100%-2rem)] max-w-[440px] rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/30";
+  "w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-0 shadow-xl backdrop:bg-slate-900/30";
 
 export const dialogHeaderClass =
-  "flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5";
+  "flex items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-r from-[#075da3] to-[#0d86d7] px-6 py-5 text-white";

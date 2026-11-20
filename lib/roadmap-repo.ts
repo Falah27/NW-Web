@@ -1,6 +1,10 @@
 import { getDb } from "./db";
 import type { Milestone, MilestoneCategory, RoadmapModel } from "./types";
-import type { CategoryInput, MilestoneInput } from "./roadmap-validation";
+import type {
+  CategoryDraftInput,
+  CategoryInput,
+  MilestoneInput,
+} from "./roadmap-validation";
 
 interface ModelRow {
   id: number;
@@ -227,5 +231,93 @@ export function deleteCategory(id: number): void {
       .get(id);
     if (usage) throw new Error("Kategori masih digunakan oleh milestone.");
     getDb().prepare("DELETE FROM milestone_categories WHERE id = ?").run(id);
+  });
+}
+
+export function saveCategories(categories: CategoryDraftInput[]): void {
+  inTransaction(() => {
+    const db = getDb();
+    const existing = db
+      .prepare("SELECT id, name, color FROM milestone_categories")
+      .all() as unknown as CategoryRow[];
+    const existingById = new Map(existing.map((category) => [category.id, category]));
+    const requestedIds = new Set<number>();
+
+    for (const category of categories) {
+      if (category.id === undefined) continue;
+      if (!existingById.has(category.id)) {
+        throw new Error("Kategori milestone tidak ditemukan.");
+      }
+      if (requestedIds.has(category.id)) throw new Error("Kategori duplikat.");
+      requestedIds.add(category.id);
+    }
+
+    const removed = existing.filter((category) => !requestedIds.has(category.id));
+    for (const category of removed) {
+      const usage = db
+        .prepare("SELECT 1 FROM milestones WHERE category_id = ? LIMIT 1")
+        .get(category.id);
+      if (usage) throw new Error(`Kategori "${category.name}" masih digunakan oleh milestone.`);
+    }
+    for (const category of removed) {
+      db.prepare("DELETE FROM milestone_categories WHERE id = ?").run(category.id);
+    }
+
+    const retained = categories.filter((category) => category.id !== undefined);
+    const usedNames = new Set([
+      ...existing.map((category) => category.name.toLocaleLowerCase("id-ID")),
+      ...categories.map((category) => category.name.toLocaleLowerCase("id-ID")),
+    ]);
+    const usedColors = new Set([
+      ...existing.map((category) => category.color.toLowerCase()),
+      ...categories.map((category) => category.color.toLowerCase()),
+    ]);
+    let nameSuffix = 0;
+    let colorCandidate = 0;
+
+    function temporaryName(id: number): string {
+      let candidate: string;
+      do {
+        candidate = `__roadmap_${id}_${nameSuffix++}`;
+      } while (usedNames.has(candidate.toLocaleLowerCase("id-ID")));
+      usedNames.add(candidate.toLocaleLowerCase("id-ID"));
+      return candidate;
+    }
+
+    function temporaryColor(): string {
+      while (colorCandidate <= 0xffffff) {
+        const candidate = `#${(colorCandidate++).toString(16).padStart(6, "0")}`;
+        if (usedColors.has(candidate)) continue;
+        usedColors.add(candidate);
+        return candidate;
+      }
+      throw new Error("Tidak tersedia warna sementara untuk menyimpan kategori.");
+    }
+
+    for (const category of retained) {
+      const id = category.id;
+      if (id === undefined) continue;
+      db.prepare("UPDATE milestone_categories SET name = ?, color = ? WHERE id = ?")
+        .run(temporaryName(id), temporaryColor(), id);
+    }
+
+    for (const category of retained) {
+      const id = category.id;
+      if (id === undefined) continue;
+      db.prepare("UPDATE milestone_categories SET name = ?, color = ? WHERE id = ?")
+        .run(category.name, category.color, id);
+    }
+
+    const maxSortOrder = db
+      .prepare("SELECT COALESCE(MAX(sort_order), -1) AS sort_order FROM milestone_categories")
+      .get() as { sort_order: number };
+    let sortOrder = Number(maxSortOrder.sort_order);
+    for (const category of categories) {
+      if (category.id !== undefined) continue;
+      sortOrder += 1;
+      db.prepare(
+        "INSERT INTO milestone_categories (name, color, sort_order) VALUES (?, ?, ?)"
+      ).run(category.name, category.color, sortOrder);
+    }
   });
 }

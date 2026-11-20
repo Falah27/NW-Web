@@ -15,6 +15,10 @@ export interface CategoryInput {
   color: string;
 }
 
+export interface CategoryDraftInput extends CategoryInput {
+  id?: number;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -52,6 +56,47 @@ export function validateCategoryInput(value: unknown): ValidationResult<Category
     return { ok: false, error: "Warna harus berupa kode heksadesimal, contoh #0875d1." };
   }
   return { ok: true, value: { name: name.value, color: value.color } };
+}
+
+export function validateCategoriesInput(value: unknown): ValidationResult<CategoryDraftInput[]> {
+  if (!Array.isArray(value) || value.length === 0) {
+    return { ok: false, error: "Minimal satu kategori harus tersedia." };
+  }
+
+  const categories: CategoryDraftInput[] = [];
+  const ids = new Set<number>();
+  const names = new Set<string>();
+  const colors = new Set<string>();
+
+  for (const item of value) {
+    if (!isRecord(item)) return { ok: false, error: "Data kategori tidak valid." };
+    const category = validateCategoryInput(item);
+    if (!category.ok) return category;
+
+    let id: number | undefined;
+    if (item.id !== undefined) {
+      const validatedId = validateId(item.id);
+      if (!validatedId.ok) return validatedId;
+      id = validatedId.value;
+      if (ids.has(id)) return { ok: false, error: "Kategori duplikat." };
+      ids.add(id);
+    }
+
+    const normalizedName = category.value.name.toLocaleLowerCase("id-ID");
+    if (names.has(normalizedName)) {
+      return { ok: false, error: "Nama kategori tidak boleh kembar." };
+    }
+    names.add(normalizedName);
+
+    const normalizedColor = category.value.color.toLowerCase();
+    if (colors.has(normalizedColor)) {
+      return { ok: false, error: "Warna kategori tidak boleh kembar." };
+    }
+    colors.add(normalizedColor);
+    categories.push({ ...category.value, ...(id === undefined ? {} : { id }) });
+  }
+
+  return { ok: true, value: categories };
 }
 
 export function validateMilestoneInput(value: unknown): ValidationResult<MilestoneInput> {

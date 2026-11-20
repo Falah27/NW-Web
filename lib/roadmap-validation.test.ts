@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  validateCategoriesInput,
   validateCategoryInput,
   validateCategoryName,
   validateId,
@@ -15,6 +16,37 @@ test("validates and normalizes model and category names", () => {
   assert.deepEqual(validateCategoryName(" Release "), { ok: true, value: "Release" });
   assert.equal(validateCategoryInput({ name: "Release", color: "#aBc123" }).ok, true);
   assert.equal(validateCategoryInput({ name: "Release", color: "red" }).ok, false);
+});
+
+test("validates category drafts as a unique non-empty set", () => {
+  assert.deepEqual(
+    validateCategoriesInput([
+      { id: 1, name: "Release", color: "#aabbcc" },
+      { name: "Design", color: "#ddeeff" },
+    ]),
+    {
+      ok: true,
+      value: [
+        { id: 1, name: "Release", color: "#aabbcc" },
+        { name: "Design", color: "#ddeeff" },
+      ],
+    }
+  );
+  assert.equal(
+    validateCategoriesInput([
+      { id: 1, name: "Release", color: "#aabbcc" },
+      { id: 2, name: "release", color: "#ddeeff" },
+    ]).ok,
+    false
+  );
+  assert.equal(
+    validateCategoriesInput([
+      { id: 1, name: "Release", color: "#aabbcc" },
+      { id: 2, name: "Design", color: "#AABBCC" },
+    ]).ok,
+    false
+  );
+  assert.equal(validateCategoriesInput([]).ok, false);
 });
 
 test("validates positive integer IDs", () => {

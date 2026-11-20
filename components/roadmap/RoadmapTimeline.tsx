@@ -1,17 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition, type CSSProperties, type FormEvent } from "react";
-import {
-  createMilestoneAction,
-  createModelAction,
-  deleteMilestoneAction,
-  updateMilestoneAction,
-} from "@/app/roadmap/actions";
-import Drawer, {
-  DrawerBody,
-  DrawerFooter,
-  DrawerHeader,
-} from "@/components/ui/Drawer";
+import { useMemo, useState, type CSSProperties } from "react";
 import Toast from "@/components/ui/Toast";
 import { addDaysISO, diffDaysISO, parseISODate } from "@/lib/dates";
 import {
@@ -21,10 +10,15 @@ import {
   LANE_HEIGHT,
 } from "@/lib/roadmap-layout";
 import type { Milestone, MilestoneCategory, RoadmapModel } from "@/lib/types";
+import {
+  CategoryManager,
+  MilestoneDialog,
+  ModelDialog,
+  type MilestoneDraft,
+} from "./RoadmapDialogs";
 import { readableTextColor } from "./colors";
 import styles from "./roadmap.module.css";
 import {
-  btnDanger,
   btnPrimary,
   btnSecondary,
   inputClass,
@@ -43,7 +37,6 @@ type Props = {
   canEdit: boolean;
 };
 
-type FormMilestone = Omit<Milestone, "id"> & { id?: number };
 type ToastMessage = { message: string; tone: "success" | "error"; key: number };
 type RoadmapStyle = CSSProperties & {
   "--model-width"?: string;
@@ -52,16 +45,6 @@ type RoadmapStyle = CSSProperties & {
   "--weekend-offset"?: string;
   "--today-position"?: string;
 };
-
-function milestoneFromForm(form: FormData): FormMilestone {
-  return {
-    modelId: Number(form.get("modelId")),
-    categoryId: Number(form.get("categoryId")),
-    title: String(form.get("title") ?? ""),
-    start: String(form.get("start") ?? ""),
-    end: String(form.get("end") ?? ""),
-  };
-}
 
 export default function RoadmapTimeline({
   models,
@@ -74,11 +57,10 @@ export default function RoadmapTimeline({
   const [dayWidth, setDayWidth] = useState(INITIAL_DAY_WIDTH);
   const [start, setStart] = useState(() => addDaysISO(today, -30));
   const [search, setSearch] = useState("");
-  const [showCategories, setShowCategories] = useState(true);
-  const [editing, setEditing] = useState<FormMilestone | null>(null);
-  const [addingModel, setAddingModel] = useState(false);
+  const [editing, setEditing] = useState<MilestoneDraft | null>(null);
+  const [modelDialog, setModelDialog] = useState<{ model?: RoadmapModel } | null>(null);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [notice, setNotice] = useState<ToastMessage | null>(null);
-  const [pending, startTransition] = useTransition();
 
   const dayDates = useMemo(
     () => Array.from({ length: dayCount }, (_, index) => addDaysISO(start, index)),
@@ -163,54 +145,6 @@ export default function RoadmapTimeline({
     setStart((current) => addDaysISO(current, direction * dayCount));
   }
 
-  function submitMilestone(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    const input = milestoneFromForm(formData);
-    const id = editing?.id;
-    startTransition(async () => {
-      const result =
-        id === undefined
-          ? await createMilestoneAction(input)
-          : await updateMilestoneAction(id, input);
-      if (!result.ok) {
-        showNotice(result.error, "error");
-        return;
-      }
-      setEditing(null);
-      showNotice(id === undefined ? "Milestone berhasil ditambahkan." : "Milestone berhasil diperbarui.");
-    });
-  }
-
-  function removeMilestone() {
-    if (editing?.id === undefined) return;
-    if (!window.confirm("Hapus milestone ini? Tindakan ini tidak dapat dibatalkan.")) return;
-    const id = editing.id;
-    startTransition(async () => {
-      const result = await deleteMilestoneAction(id);
-      if (!result.ok) {
-        showNotice(result.error, "error");
-        return;
-      }
-      setEditing(null);
-      showNotice("Milestone berhasil dihapus.");
-    });
-  }
-
-  function submitModel(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = new FormData(event.currentTarget).get("name");
-    startTransition(async () => {
-      const result = await createModelAction(name);
-      if (!result.ok) {
-        showNotice(result.error, "error");
-        return;
-      }
-      setAddingModel(false);
-      showNotice("Model berhasil ditambahkan.");
-    });
-  }
-
   return (
     <section className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -281,37 +215,33 @@ export default function RoadmapTimeline({
             ›
           </button>
         </div>
-        {canEdit && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowCategories((visible) => !visible)}
-              aria-expanded={showCategories}
-              aria-controls="roadmap-category-legend"
-              className={btnSecondary}
-            >
-              Kategori
-            </button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCategoryDialogOpen(true)}
+            className={btnSecondary}
+          >
+            Kategori
+          </button>
+          {canEdit && (
             <button type="button" className={btnPrimary} onClick={openNewMilestone}>
               + Tambah milestone
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {showCategories && (
-        <div id="roadmap-category-legend" aria-label="Kategori milestone" className="flex flex-wrap gap-4 text-xs text-slate-600">
-          {categories.map((category) => (
-            <span key={category.id} className="inline-flex items-center gap-2">
-              <i
-                className="h-3 w-3 rounded-sm border border-slate-300"
-                style={{ backgroundColor: category.color }}
-              />
-              {category.name}
-            </span>
-          ))}
-        </div>
-      )}
+      <div id="roadmap-category-legend" aria-label="Kategori milestone" className="flex flex-wrap gap-4 text-xs text-slate-600">
+        {categories.map((category) => (
+          <span key={category.id} className="inline-flex items-center gap-2">
+            <i
+              className="h-3 w-3 rounded-sm border border-slate-300"
+              style={{ backgroundColor: category.color }}
+            />
+            {category.name}
+          </span>
+        ))}
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="h-[calc(100vh-18rem)] min-h-[480px] max-w-full overflow-auto overscroll-contain">
@@ -330,7 +260,7 @@ export default function RoadmapTimeline({
               {canEdit && (
                 <button
                   type="button"
-                  onClick={() => setAddingModel(true)}
+                  onClick={() => setModelDialog({})}
                   aria-label="Tambah model"
                   title="Tambah model"
                   className="h-7 w-7 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
@@ -394,6 +324,17 @@ export default function RoadmapTimeline({
                 className="group sticky left-0 z-10 flex w-[180px] flex-none items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 focus-visible:z-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand hover:z-30 hover:bg-brand-soft hover:text-brand"
               >
                 <span className="truncate">{model.name}</span>
+                {canEdit && (
+                  <button
+                    type="button"
+                    aria-label={`Ubah model ${model.name}`}
+                    title={`Ubah model ${model.name}`}
+                    onClick={() => setModelDialog({ model })}
+                    className="ml-auto flex h-7 w-7 flex-none items-center justify-center rounded-lg border border-slate-300 bg-white text-xs text-slate-600 opacity-0 hover:bg-slate-50 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand group-hover:opacity-100"
+                  >
+                    ✎
+                  </button>
+                )}
                 <div
                   id={`roadmap-model-tooltip-${model.id}`}
                   role="tooltip"
@@ -497,21 +438,35 @@ export default function RoadmapTimeline({
       </div>
 
       {editing && canEdit && (
-        <MilestoneDrawer
+        <MilestoneDialog
           categories={categories}
           models={models}
           milestone={editing}
-          pending={pending}
+          today={today}
           onClose={() => setEditing(null)}
-          onDelete={removeMilestone}
-          onSubmit={submitMilestone}
+          onSaved={(message) => showNotice(message)}
         />
       )}
-      {addingModel && canEdit && (
-        <ModelDrawer
-          pending={pending}
-          onClose={() => setAddingModel(false)}
-          onSubmit={submitModel}
+      {modelDialog && canEdit && (
+        <ModelDialog
+          models={models}
+          model={modelDialog.model}
+          milestoneCount={
+            modelDialog.model
+              ? milestones.filter((milestone) => milestone.modelId === modelDialog.model?.id).length
+              : 0
+          }
+          onClose={() => setModelDialog(null)}
+          onSaved={(message) => showNotice(message)}
+        />
+      )}
+      {categoryDialogOpen && (
+        <CategoryManager
+          categories={categories}
+          milestones={milestones}
+          canEdit={canEdit}
+          onClose={() => setCategoryDialogOpen(false)}
+          onSaved={(message) => showNotice(message)}
         />
       )}
       {notice && (
@@ -523,112 +478,5 @@ export default function RoadmapTimeline({
         />
       )}
     </section>
-  );
-}
-
-function MilestoneDrawer({
-  categories,
-  models,
-  milestone,
-  pending,
-  onClose,
-  onDelete,
-  onSubmit,
-}: {
-  categories: MilestoneCategory[];
-  models: RoadmapModel[];
-  milestone: FormMilestone;
-  pending: boolean;
-  onClose: () => void;
-  onDelete: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <Drawer onClose={onClose} label="Form milestone roadmap" size="md">
-      <DrawerHeader
-        title={milestone.id === undefined ? "Tambah milestone" : "Ubah milestone"}
-        onClose={onClose}
-      />
-      <DrawerBody>
-        <form id="roadmap-milestone-form" onSubmit={onSubmit} className="flex flex-col gap-4">
-          <label className={labelClass}>
-            Model
-            <select className={inputClass} name="modelId" defaultValue={milestone.modelId} required>
-              {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
-            </select>
-          </label>
-          <label className={labelClass}>
-            Kategori
-            <select className={inputClass} name="categoryId" defaultValue={milestone.categoryId} required>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className={labelClass}>
-            Nama milestone
-            <input className={inputClass} name="title" defaultValue={milestone.title} maxLength={120} required />
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className={labelClass}>
-              Tanggal mulai
-              <input className={inputClass} type="date" name="start" defaultValue={milestone.start} required />
-            </label>
-            <label className={labelClass}>
-              Tanggal selesai
-              <input className={inputClass} type="date" name="end" defaultValue={milestone.end} required />
-            </label>
-          </div>
-          <p className="text-xs text-slate-500">Durasi milestone maksimal 1096 hari.</p>
-        </form>
-      </DrawerBody>
-      <DrawerFooter className="justify-between">
-        {milestone.id !== undefined ? (
-          <button type="button" onClick={onDelete} disabled={pending} className={`${btnDanger} disabled:opacity-60`}>
-            Hapus
-          </button>
-        ) : <span />}
-        <div className="ml-auto flex gap-2">
-          <button type="button" onClick={onClose} className={btnSecondary}>
-            Batal
-          </button>
-          <button form="roadmap-milestone-form" type="submit" disabled={pending} className={`${btnPrimary} disabled:opacity-60`}>
-            {pending ? "Menyimpan..." : "Simpan"}
-          </button>
-        </div>
-      </DrawerFooter>
-    </Drawer>
-  );
-}
-
-function ModelDrawer({
-  pending,
-  onClose,
-  onSubmit,
-}: {
-  pending: boolean;
-  onClose: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <Drawer onClose={onClose} label="Form model roadmap" size="md">
-      <DrawerHeader title="Tambah model" onClose={onClose} />
-      <DrawerBody>
-        <form id="roadmap-model-form" onSubmit={onSubmit}>
-          <label className={labelClass}>
-            Nama model
-            <input className={inputClass} name="name" maxLength={80} required autoFocus />
-          </label>
-        </form>
-      </DrawerBody>
-      <DrawerFooter className="justify-end">
-        <button type="button" onClick={onClose} className={btnSecondary}>
-          Batal
-        </button>
-        <button form="roadmap-model-form" type="submit" disabled={pending} className={`${btnPrimary} disabled:opacity-60`}>
-          {pending ? "Menyimpan..." : "Tambah model"}
-        </button>
-      </DrawerFooter>
-    </Drawer>
   );
 }

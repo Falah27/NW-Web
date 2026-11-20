@@ -11,10 +11,12 @@ import {
   deleteMilestone,
   deleteModel,
   renameModel,
+  saveCategories,
   updateCategory,
   updateMilestone,
 } from "@/lib/roadmap-repo";
 import {
+  validateCategoriesInput,
   validateCategoryInput,
   validateId,
   validateMilestoneInput,
@@ -155,6 +157,19 @@ export async function deleteCategoryAction(id: unknown): Promise<ActionResult> {
     const validId = validateId(id);
     if (!validId.ok) return validId;
     deleteCategory(validId.value);
+    revalidatePath("/roadmap");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: errorMessage(error) };
+  }
+}
+
+export async function saveCategoriesAction(input: unknown): Promise<ActionResult> {
+  try {
+    assertCanEdit();
+    const validated = validateCategoriesInput(input);
+    if (!validated.ok) return validated;
+    saveCategories(validated.value);
     revalidatePath("/roadmap");
     return { ok: true };
   } catch (error) {
