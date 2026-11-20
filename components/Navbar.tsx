@@ -11,6 +11,7 @@ const links = [
   { href: "/members", label: "Member" },
   { href: "/documents", label: "Dokumen" },
   { href: "/calendar", label: "Kalender" },
+  { href: "/roadmap", label: "Roadmap" },
 ];
 
 export default function Navbar() {

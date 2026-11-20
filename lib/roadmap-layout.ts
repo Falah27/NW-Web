@@ -37,7 +37,7 @@ export function getMonthSegments(startIso: string, dayCount: number): MonthSegme
 
   for (let index = 0; index < dayCount; index += 1) {
     const iso = addDaysISO(startIso, index);
-    const label = new Intl.DateTimeFormat("en-US", {
+    const label = new Intl.DateTimeFormat("id-ID", {
       month: "long",
       year: "numeric",
     }).format(date);

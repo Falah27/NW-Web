@@ -4,8 +4,8 @@ import { dueStatus, getMonthSegments, layoutRow } from "./roadmap-layout.ts";
 
 test("getMonthSegments groups consecutive days into calendar months", () => {
   assert.deepEqual(getMonthSegments("2026-01-30", 5), [
-    { startIso: "2026-01-30", label: "January 2026", count: 2 },
-    { startIso: "2026-02-01", label: "February 2026", count: 3 },
+    { startIso: "2026-01-30", label: "Januari 2026", count: 2 },
+    { startIso: "2026-02-01", label: "Februari 2026", count: 3 },
   ]);
   assert.deepEqual(getMonthSegments("2026-01-01", 0), []);
 });
