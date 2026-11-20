@@ -1,0 +1,38 @@
+.calendarRow {
+  background-color: #fff;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--day-width) - 1px),
+      #e2e8f0 calc(var(--day-width) - 1px),
+      #e2e8f0 var(--day-width)
+    ),
+    linear-gradient(
+      to right,
+      transparent 0,
+      transparent var(--today-position),
+      #eef2ff var(--today-position),
+      #eef2ff calc(var(--today-position) + var(--day-width)),
+      transparent calc(var(--today-position) + var(--day-width))
+    ),
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc(var(--day-width) * 5),
+      #f8fafc calc(var(--day-width) * 5),
+      #f8fafc calc(var(--day-width) * 7)
+    );
+  background-position:
+    0 0,
+    0 0,
+    calc(-1 * var(--weekend-offset)) 0;
+  background-repeat:
+    repeat,
+    no-repeat,
+    repeat;
+  background-size:
+    var(--day-width) 100%,
+    100% 100%,
+    calc(var(--day-width) * 7) 100%;
+}

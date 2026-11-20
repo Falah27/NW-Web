@@ -11,7 +11,6 @@ import Drawer, {
   DrawerBody,
   DrawerFooter,
   DrawerHeader,
-  inputClass,
 } from "@/components/ui/Drawer";
 import Toast from "@/components/ui/Toast";
 import { addDaysISO, diffDaysISO, parseISODate } from "@/lib/dates";
@@ -22,7 +21,15 @@ import {
   LANE_HEIGHT,
 } from "@/lib/roadmap-layout";
 import type { Milestone, MilestoneCategory, RoadmapModel } from "@/lib/types";
-import styles from "./RoadmapTimeline.module.css";
+import { readableTextColor } from "./colors";
+import styles from "./roadmap.module.css";
+import {
+  btnDanger,
+  btnPrimary,
+  btnSecondary,
+  inputClass,
+  labelClass,
+} from "./ui";
 
 const INITIAL_DAY_WIDTH = 42;
 const MIN_DAY_WIDTH = 14;
@@ -39,8 +46,11 @@ type Props = {
 type FormMilestone = Omit<Milestone, "id"> & { id?: number };
 type ToastMessage = { message: string; tone: "success" | "error"; key: number };
 type RoadmapStyle = CSSProperties & {
+  "--model-width"?: string;
   "--day-width"?: string;
   "--calendar-width"?: string;
+  "--weekend-offset"?: string;
+  "--today-position"?: string;
 };
 
 function milestoneFromForm(form: FormData): FormMilestone {
@@ -64,6 +74,7 @@ export default function RoadmapTimeline({
   const [dayWidth, setDayWidth] = useState(INITIAL_DAY_WIDTH);
   const [start, setStart] = useState(() => addDaysISO(today, -30));
   const [search, setSearch] = useState("");
+  const [showCategories, setShowCategories] = useState(true);
   const [editing, setEditing] = useState<FormMilestone | null>(null);
   const [addingModel, setAddingModel] = useState(false);
   const [notice, setNotice] = useState<ToastMessage | null>(null);
@@ -103,6 +114,7 @@ export default function RoadmapTimeline({
         return {
           model,
           layout,
+          milestones: modelMilestones,
           items: layout.items.filter((item) => modelMatches || matches.has(item.id)),
           visible: modelMatches || matches.size > 0,
         };
@@ -118,9 +130,16 @@ export default function RoadmapTimeline({
     () => new Map(categories.map((category) => [category.id, category])),
     [categories]
   );
-  const dayWidthStyle: RoadmapStyle = { "--day-width": `${dayWidth}px` };
   const calendarWidth = dayCount * dayWidth;
   const todayOffset = diffDaysISO(start, today);
+  const dayWidthStyle: RoadmapStyle = {
+    "--day-width": `${dayWidth}px`,
+    "--weekend-offset": `${((parseISODate(start).getDay() + 6) % 7) * dayWidth}px`,
+    "--today-position":
+      todayOffset >= 0 && todayOffset < dayCount
+        ? `${todayOffset * dayWidth}px`
+        : "-10000px",
+  };
 
   function showNotice(message: string, tone: ToastMessage["tone"] = "success") {
     setNotice({ message, tone, key: Date.now() });
@@ -193,35 +212,33 @@ export default function RoadmapTimeline({
   }
 
   return (
-    <section className={styles.page}>
-      <header className={styles.topbar}>
-        <div className={styles.brand}>
-          <span className={styles.brandIcon} aria-hidden="true">↻</span>
-          <div>
-            <h1>Roadmap Pengembangan Model</h1>
-            <p>Jadwal dan milestone pengembangan</p>
-          </div>
+    <section className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Roadmap Model</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            {dayDates[0]} — {dayDates[dayDates.length - 1]} · {rows.length} model ditampilkan · {milestones.length} milestone
+          </p>
         </div>
-        <div className={styles.toolbar}>
-          <div className={styles.periodControls} aria-label="Navigasi periode timeline">
-            <button type="button" onClick={() => setDayWidth((width) => Math.max(MIN_DAY_WIDTH, width - 7))} aria-label="Perkecil timeline">
-              −
-            </button>
-            <span className={styles.zoomLabel}>{Math.round((dayWidth / INITIAL_DAY_WIDTH) * 100)}%</span>
-            <button type="button" onClick={() => setDayWidth((width) => Math.min(MAX_DAY_WIDTH, width + 7))} aria-label="Perbesar timeline">
-              +
-            </button>
-            <span className={styles.controlDivider} />
-            <button type="button" onClick={() => shiftPeriod(-1)} aria-label="Periode sebelumnya">‹</button>
-            <button type="button" className={styles.todayButton} onClick={() => setStart(addDaysISO(today, -30))}>
-              Hari ini
-            </button>
-            <button type="button" onClick={() => shiftPeriod(1)} aria-label="Periode berikutnya">›</button>
-          </div>
-          <label className={styles.srOnly} htmlFor="roadmap-period">Rentang timeline</label>
+      </div>
+
+      <div className="flex min-w-0 flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+        <label className={`${labelClass} min-w-[220px] flex-1`}>
+          Cari model atau milestone
+          <input
+            id="roadmap-search"
+            className={`${inputClass} w-full`}
+            type="search"
+            placeholder="Cari model atau milestone"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </label>
+        <label className={labelClass}>
+          Periode
           <select
             id="roadmap-period"
-            className={styles.periodSelect}
+            className={inputClass}
             value={dayCount}
             onChange={(event) => setDayCount(Number(event.target.value))}
           >
@@ -231,99 +248,129 @@ export default function RoadmapTimeline({
             <option value={365}>365 hari</option>
             <option value={730}>730 hari</option>
           </select>
-          <label className={styles.srOnly} htmlFor="roadmap-search">Cari model atau milestone</label>
-          <input
-            id="roadmap-search"
-            className={styles.search}
-            type="search"
-            placeholder="Cari model atau milestone..."
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          {canEdit && (
-            <>
-              <button type="button" className={styles.secondaryButton} onClick={() => setAddingModel(true)}>
-                + Model
-              </button>
-              <button type="button" className={styles.primaryButton} onClick={openNewMilestone}>
-                + Milestone
-              </button>
-            </>
-          )}
-        </div>
-      </header>
-
-      <div className={styles.summary}>
-        <span>
-          {dayDates[0]} — {dayDates[dayDates.length - 1]}
-        </span>
-        <span>{rows.length} model ditampilkan · {milestones.length} milestone total</span>
-      </div>
-
-      <div className={styles.legend} aria-label="Kategori milestone">
-        {categories.map((category) => (
-          <span key={category.id} className={styles.legendItem}>
-            <i style={{ backgroundColor: category.color }} />
-            {category.name}
+        </label>
+        <div role="group" aria-label="Zoom timeline" className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white">
+          <button
+            type="button"
+            onClick={() => setDayWidth((width) => Math.max(MIN_DAY_WIDTH, width - 7))}
+            aria-label="Perkecil timeline"
+            className="h-10 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            −
+          </button>
+          <span className="inline-flex h-10 min-w-14 items-center justify-center border-l border-slate-300 px-3 text-sm font-semibold text-slate-700">
+            {Math.round((dayWidth / INITIAL_DAY_WIDTH) * 100)}%
           </span>
-        ))}
-        {!canEdit && <span className={styles.readOnly}>Mode hanya baca</span>}
+          <button
+            type="button"
+            onClick={() => setDayWidth((width) => Math.min(MAX_DAY_WIDTH, width + 7))}
+            aria-label="Perbesar timeline"
+            className="h-10 border-l border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            +
+          </button>
+        </div>
+        <div role="group" aria-label="Navigasi periode" className="inline-flex overflow-hidden rounded-lg border border-slate-300 bg-white">
+          <button type="button" onClick={() => shiftPeriod(-1)} aria-label="Periode sebelumnya" className="h-10 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            ‹
+          </button>
+          <button type="button" onClick={() => setStart(addDaysISO(today, -30))} className="h-10 border-l border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Hari ini
+          </button>
+          <button type="button" onClick={() => shiftPeriod(1)} aria-label="Periode berikutnya" className="h-10 border-l border-slate-300 px-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            ›
+          </button>
+        </div>
+        {canEdit && (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCategories((visible) => !visible)}
+              aria-expanded={showCategories}
+              aria-controls="roadmap-category-legend"
+              className={btnSecondary}
+            >
+              Kategori
+            </button>
+            <button type="button" className={btnPrimary} onClick={openNewMilestone}>
+              + Tambah milestone
+            </button>
+          </div>
+        )}
       </div>
 
-      <div className={styles.scrollArea}>
+      {showCategories && (
+        <div id="roadmap-category-legend" aria-label="Kategori milestone" className="flex flex-wrap gap-4 text-xs text-slate-600">
+          {categories.map((category) => (
+            <span key={category.id} className="inline-flex items-center gap-2">
+              <i
+                className="h-3 w-3 rounded-sm border border-slate-300"
+                style={{ backgroundColor: category.color }}
+              />
+              {category.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="h-[calc(100vh-18rem)] min-h-[480px] max-w-full overflow-auto overscroll-contain">
         <div
-          className={styles.canvas}
+          className="relative"
           style={{
             ...dayWidthStyle,
+            "--model-width": "180px",
             "--calendar-width": `${calendarWidth}px`,
             width: "calc(var(--model-width) + var(--calendar-width))",
           } as RoadmapStyle}
         >
-          <div className={styles.header}>
-            <div className={styles.corner}>
-              <span className={styles.cornerIcon} aria-hidden="true">↻</span>
-              <span>Model</span>
+          <div className="sticky top-0 z-20 flex h-20 bg-white">
+            <div className="sticky left-0 z-30 flex h-20 w-[180px] flex-none items-center justify-center gap-2 border-r border-slate-200 bg-slate-100">
+              <span className="text-xs font-semibold text-slate-500">Model</span>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => setAddingModel(true)}
+                  aria-label="Tambah model"
+                  title="Tambah model"
+                  className="h-7 w-7 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  +
+                </button>
+              )}
             </div>
-            <div className={styles.calendarHeader} style={{ width: calendarWidth }}>
-              <div className={styles.monthRow}>
-                {monthSegments.map((segment) => (
+            <div className="flex-none" style={{ width: calendarWidth }}>
+              <div className="flex h-9 border-b border-slate-200">
+                {monthSegments.map((segment, index) => (
                   <div
                     key={segment.startIso}
-                    className={styles.monthCell}
+                    className={`flex h-9 flex-none items-center justify-center border-b border-slate-200 text-sm font-bold text-slate-900 ${index > 0 ? "border-l border-slate-300" : ""}`}
                     style={{ width: segment.count * dayWidth }}
                   >
                     {segment.label}
                   </div>
                 ))}
               </div>
-              <div className={styles.dateRow}>
+              <div className="flex h-11">
                 {dayDates.map((date) => {
                   const parsed = parseISODate(date);
                   const weekend = parsed.getDay() === 0 || parsed.getDay() === 6;
+                  const sunday = parsed.getDay() === 0;
+                  const weekday = new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(parsed);
+                  const isToday = date === today;
                   return (
                     <div
                       key={date}
-                      className={`${styles.dateCell} ${weekend ? styles.weekend : ""} ${date === today ? styles.todayDate : ""}`}
+                      className={`flex h-11 flex-none flex-col items-center justify-center border-b border-r border-slate-200 ${weekend ? "bg-slate-50" : "bg-white"}`}
                       style={{ width: dayWidth }}
                       title={date}
                     >
-                      {parsed.getDate()}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className={styles.dayNameRow}>
-                {dayDates.map((date) => {
-                  const parsed = parseISODate(date);
-                  const weekend = parsed.getDay() === 0 || parsed.getDay() === 6;
-                  const weekday = new Intl.DateTimeFormat("id-ID", { weekday: "short" }).format(parsed);
-                  return (
-                    <div
-                      key={date}
-                      className={`${styles.dayNameCell} ${weekend ? styles.weekend : ""}`}
-                      style={{ width: dayWidth }}
-                    >
-                      {weekday}
+                      <span className={`text-[10px] font-semibold ${sunday ? "text-red-500" : "text-slate-400"}`}>
+                        {weekday}
+                      </span>
+                      <span className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${isToday ? "bg-brand text-white" : "text-slate-700"}`}>
+                        {parsed.getDate()}
+                      </span>
                     </div>
                   );
                 })}
@@ -331,42 +378,71 @@ export default function RoadmapTimeline({
             </div>
           </div>
 
-          {rows.map(({ model, layout, items }) => (
-            <div className={styles.row} key={model.id} style={{ height: layout.rowHeight }}>
-              <div className={styles.modelCell} title={model.name}>
-                <span>{model.name}</span>
+          {todayOffset >= 0 && todayOffset < dayCount && (
+            <span
+              className="pointer-events-none absolute bottom-0 top-20 z-[4] w-0.5 bg-[#2b4acb] before:absolute before:-top-px before:left-[-3px] before:h-2 before:w-2 before:rounded-full before:bg-[#2b4acb]"
+              style={{ left: 180 + todayOffset * dayWidth + dayWidth / 2 }}
+              aria-hidden="true"
+            />
+          )}
+
+          {rows.map(({ model, layout, items, milestones: modelMilestones }) => (
+            <div className="flex border-b border-slate-100" key={model.id} style={{ height: layout.rowHeight }}>
+              <div
+                tabIndex={0}
+                aria-describedby={`roadmap-model-tooltip-${model.id}`}
+                className="group sticky left-0 z-10 flex w-[180px] flex-none items-center border-r border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 focus-visible:z-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand hover:z-30 hover:bg-brand-soft hover:text-brand"
+              >
+                <span className="truncate">{model.name}</span>
+                <div
+                  id={`roadmap-model-tooltip-${model.id}`}
+                  role="tooltip"
+                  className="pointer-events-none invisible absolute left-2 top-[calc(100%+0.375rem)] z-[60] w-[280px] whitespace-normal rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+                >
+                  <p className="border-b border-slate-100 pb-2 font-bold text-slate-900">{model.name}</p>
+                  <p className="py-2 text-slate-500">{modelMilestones.length} milestone</p>
+                  {modelMilestones.length > 0 ? (
+                    <ul className="space-y-1">
+                      {modelMilestones.slice(0, 5).map((milestone) => (
+                        <li key={milestone.id} className="truncate">{milestone.title}</li>
+                      ))}
+                    </ul>
+                  ) : <p className="text-slate-500">Belum ada milestone.</p>}
+                  {modelMilestones.length > 5 && (
+                    <p className="mt-1 text-slate-500">dan {modelMilestones.length - 5} lainnya</p>
+                  )}
+                </div>
               </div>
-              <div className={styles.calendarRow} style={{ width: calendarWidth }}>
-                {monthSegments.map((segment, index) => (
+              <div
+                className={`${styles.calendarRow} relative min-h-[34px] flex-none`}
+                style={{ width: calendarWidth }}
+              >
+                {monthSegments.slice(1).map((segment) => (
                   <span
                     aria-hidden="true"
                     key={segment.startIso}
-                    className={styles.monthDivider}
-                    style={{
-                      left: monthSegments
-                        .slice(0, index)
-                        .reduce((sum, previous) => sum + previous.count * dayWidth, 0),
-                    }}
+                    className="absolute inset-y-0 z-[1] border-l border-slate-300"
+                    style={{ left: diffDaysISO(start, segment.startIso) * dayWidth }}
                   />
                 ))}
-                {todayOffset >= 0 && todayOffset < dayCount && (
-                  <span
-                    className={styles.todayLine}
-                    style={{ left: todayOffset * dayWidth + dayWidth / 2 }}
-                    aria-hidden="true"
-                  />
-                )}
                 {items.map((item) => {
                   const milestone = milestoneById.get(item.id);
                   if (!milestone) return null;
                   const category = categoryById.get(milestone.categoryId);
+                  const categoryColor = category?.color ?? "#cbd5e1";
                   const eventWidth = Math.max(22, item.spanDays * dayWidth - 6);
+                  const due = dueStatus(milestone.end, today);
+                  const dueColor = due.startsWith("Terlambat")
+                    ? "text-red-600"
+                    : due === "Jatuh tempo hari ini"
+                      ? "text-brand"
+                      : "text-slate-500";
                   const tooltip = [
                     milestone.title,
                     model.name,
                     category?.name,
                     `${milestone.start} – ${milestone.end}`,
-                    dueStatus(milestone.end, today),
+                    due,
                   ]
                     .filter(Boolean)
                     .join(" · ");
@@ -375,21 +451,36 @@ export default function RoadmapTimeline({
                     <button
                       type="button"
                       key={milestone.id}
-                      className={styles.event}
+                      className="group absolute z-[3] flex h-[22px] min-w-[22px] items-center gap-1 overflow-visible rounded-md border px-1.5 text-xs font-semibold text-left hover:z-40 hover:brightness-[0.97] hover:shadow-sm focus-visible:z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1"
                       style={{
                         left: item.offsetDays * dayWidth + 3,
                         width: eventWidth,
                         top: 5 + item.lane * LANE_HEIGHT,
-                        backgroundColor: category?.color ?? "#cbd5e1",
+                        backgroundColor: categoryColor,
+                        borderColor: `color-mix(in srgb, ${categoryColor} 65%, #0f172a)`,
+                        borderLeftWidth: 3,
+                        color: readableTextColor(categoryColor),
                       }}
-                      title={tooltip}
                       aria-label={tooltip}
+                      aria-describedby={`roadmap-milestone-tooltip-${milestone.id}`}
                       aria-disabled={!canEdit}
                       onClick={() => canEdit && setEditing(milestone)}
                     >
-                      {item.clippedLeft && <span className={styles.clipLeft} aria-hidden="true">‹</span>}
-                      <span className={styles.eventTitle}>{milestone.title}</span>
-                      {item.clippedRight && <span className={styles.clipRight} aria-hidden="true">›</span>}
+                      {item.clippedLeft && <span className="flex-none font-bold" aria-hidden="true">‹</span>}
+                      <span className="min-w-0 truncate">{milestone.title}</span>
+                      {item.clippedRight && <span className="flex-none font-bold" aria-hidden="true">›</span>}
+                      <span
+                        id={`roadmap-milestone-tooltip-${milestone.id}`}
+                        role="tooltip"
+                        className="pointer-events-none invisible absolute left-2 top-full z-[60] mt-2 w-max max-w-80 whitespace-normal rounded-xl border border-slate-200 bg-white p-3 text-left text-xs font-normal text-slate-700 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100 group-focus-visible:visible group-focus-visible:opacity-100"
+                      >
+                        <strong className="mb-2 block border-b border-slate-100 pb-2 font-bold text-slate-900">
+                          {milestone.title}
+                        </strong>
+                        <span className="block">{model.name}{category ? ` · ${category.name}` : ""}</span>
+                        <span className="mt-1 block">{milestone.start} – {milestone.end}</span>
+                        <span className={`mt-1 block ${dueColor}`}>{due}</span>
+                      </span>
                     </button>
                   );
                 })}
@@ -397,11 +488,12 @@ export default function RoadmapTimeline({
             </div>
           ))}
           {rows.length === 0 && (
-            <div className={styles.emptyState}>
+            <div className="py-10 text-center text-slate-500">
               {models.length === 0 ? "Belum ada model pada roadmap." : "Tidak ada model atau milestone yang cocok."}
             </div>
           )}
         </div>
+      </div>
       </div>
 
       {editing && canEdit && (
@@ -459,13 +551,13 @@ function MilestoneDrawer({
       />
       <DrawerBody>
         <form id="roadmap-milestone-form" onSubmit={onSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+          <label className={labelClass}>
             Model
             <select className={inputClass} name="modelId" defaultValue={milestone.modelId} required>
               {models.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+          <label className={labelClass}>
             Kategori
             <select className={inputClass} name="categoryId" defaultValue={milestone.categoryId} required>
               {categories.map((category) => (
@@ -473,16 +565,16 @@ function MilestoneDrawer({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+          <label className={labelClass}>
             Nama milestone
             <input className={inputClass} name="title" defaultValue={milestone.title} maxLength={120} required />
           </label>
           <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+            <label className={labelClass}>
               Tanggal mulai
               <input className={inputClass} type="date" name="start" defaultValue={milestone.start} required />
             </label>
-            <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+            <label className={labelClass}>
               Tanggal selesai
               <input className={inputClass} type="date" name="end" defaultValue={milestone.end} required />
             </label>
@@ -492,15 +584,15 @@ function MilestoneDrawer({
       </DrawerBody>
       <DrawerFooter className="justify-between">
         {milestone.id !== undefined ? (
-          <button type="button" onClick={onDelete} disabled={pending} className="h-10 rounded-lg border border-red-200 px-4 text-sm font-semibold text-red-700 hover:bg-red-50">
+          <button type="button" onClick={onDelete} disabled={pending} className={`${btnDanger} disabled:opacity-60`}>
             Hapus
           </button>
         ) : <span />}
         <div className="ml-auto flex gap-2">
-          <button type="button" onClick={onClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">
+          <button type="button" onClick={onClose} className={btnSecondary}>
             Batal
           </button>
-          <button form="roadmap-milestone-form" type="submit" disabled={pending} className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
+          <button form="roadmap-milestone-form" type="submit" disabled={pending} className={`${btnPrimary} disabled:opacity-60`}>
             {pending ? "Menyimpan..." : "Simpan"}
           </button>
         </div>
@@ -523,17 +615,17 @@ function ModelDrawer({
       <DrawerHeader title="Tambah model" onClose={onClose} />
       <DrawerBody>
         <form id="roadmap-model-form" onSubmit={onSubmit}>
-          <label className="flex flex-col gap-1 text-xs font-semibold text-slate-600">
+          <label className={labelClass}>
             Nama model
             <input className={inputClass} name="name" maxLength={80} required autoFocus />
           </label>
         </form>
       </DrawerBody>
       <DrawerFooter className="justify-end">
-        <button type="button" onClick={onClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold hover:bg-slate-50">
+        <button type="button" onClick={onClose} className={btnSecondary}>
           Batal
         </button>
-        <button form="roadmap-model-form" type="submit" disabled={pending} className="h-10 rounded-lg bg-brand px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
+        <button form="roadmap-model-form" type="submit" disabled={pending} className={`${btnPrimary} disabled:opacity-60`}>
           {pending ? "Menyimpan..." : "Tambah model"}
         </button>
       </DrawerFooter>
