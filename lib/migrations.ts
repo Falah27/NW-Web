@@ -72,4 +72,16 @@ export function runMigrations(db: DatabaseSync): void {
       PRAGMA user_version = 5;
     `);
   }
+  if (Number((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version) < 6) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS job_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS job_notes_job_id_idx ON job_notes (job_id);
+      PRAGMA user_version = 6;
+    `);
+  }
 }
