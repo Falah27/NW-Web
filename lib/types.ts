@@ -42,3 +42,23 @@ export interface Member {
   skills: string[];
   email?: string;
 }
+
+export interface RoadmapModel {
+  id: number;
+  name: string;
+}
+
+export interface MilestoneCategory {
+  id: number;
+  name: string;
+  color: string;
+}
+
+export interface Milestone {
+  id: number;
+  modelId: number;
+  categoryId: number;
+  title: string;
+  start: string;
+  end: string;
+}
