@@ -13,7 +13,7 @@ import EventFormDrawer from "@/components/calendar/EventFormDrawer";
 import CalendarDetailDrawer, { type Selected } from "@/components/calendar/CalendarDetailDrawer";
 import JobDetailDrawer from "@/components/jobs/JobDetailDrawer";
 import { deleteEventAction } from "@/app/calendar/actions";
-import { addDaysISO } from "@/lib/date";
+import { addDaysISO } from "@/lib/dates";
 import EmptyState from "@/components/ui/EmptyState";
 
 const ALL = "all";

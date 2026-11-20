@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Job } from "@/lib/types";
-import { diffDaysISO } from "@/lib/date";
+import { diffDaysISO } from "@/lib/dates";
 import { addJobNote, deleteJobNote } from "@/app/jobs/actions";
 import Drawer, { DrawerBody, DrawerFooter, DrawerHeader } from "@/components/ui/Drawer";
 import JobStatusCard, { statusTheme, type JobWithStatus } from "@/components/jobs/JobStatusCard";

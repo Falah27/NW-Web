@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: (process.env.NEXT_ALLOWED_DEV_ORIGINS ?? "")
     .split(",")
     .map((origin) => origin.trim())
-    .filter(Boolean),
+    .filter(Boolean)
+    .concat(["192.168.68.62"]),
   async redirects() {
     return [{ source: "/", destination: "/jobs", permanent: false }];
   },

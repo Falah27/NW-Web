@@ -9,6 +9,7 @@ import useDialogFocus from "@/components/ui/useDialogFocus";
 import useDialogTransition from "@/components/ui/useDialogTransition";
 import Drawer, { DrawerBody, DrawerFooter, DrawerHeader, DrawerSection } from "@/components/ui/Drawer";
 import JobStatusCard, { type JobWithStatus } from "@/components/jobs/JobStatusCard";
+import { todayISO } from "@/lib/dates";
 
 export type Selected =
   | { type: "job"; job: Job; status: JobStatus }
@@ -140,7 +141,7 @@ export default function CalendarDetailDrawer({ selected, onClose, onDeleteEvent,
   const isJob = selected.type === "job";
   const title = isJob ? selected.job.jobItem : selected.event.title;
   const eyebrow = isJob ? selected.job.model : KIND_LABEL[selected.event.kind];
-  const currentToday = today ?? new Date().toISOString().slice(0, 10);
+  const currentToday = today ?? todayISO();
 
   return (
     <Drawer onClose={onClose} label={`Detail ${isJob ? "job" : "event"} ${title}`} size="md">
