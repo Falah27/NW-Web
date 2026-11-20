@@ -13,6 +13,15 @@ export function getDb(): DatabaseSyncType {
     const db = new DatabaseSync(path.resolve(process.cwd(), databasePath));
     db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
     db.exec("PRAGMA foreign_keys = ON");
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS job_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS job_notes_job_idx ON job_notes (job_id);
+    `);
     runMigrations(db);
     globalForDb.__teamHubDb = db;
   }

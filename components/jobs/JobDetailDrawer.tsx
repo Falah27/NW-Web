@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import type { Job } from "@/lib/types";
 import { diffDaysISO } from "@/lib/date";
+import { addJobNote, deleteJobNote } from "@/app/jobs/actions";
 import Drawer, { DrawerBody, DrawerFooter, DrawerHeader } from "@/components/ui/Drawer";
 import JobStatusCard, { statusTheme, type JobWithStatus } from "@/components/jobs/JobStatusCard";
 
@@ -130,6 +131,22 @@ export default function JobDetailDrawer({
   onDelete?: (job: Job) => void | Promise<void>;
   today: string;
 }) {
+  const [draft, setDraft] = useState("");
+  const [noteError, setNoteError] = useState<string | null>(null);
+  const [isPending, startNoteTransition] = useTransition();
+
+  useEffect(() => {
+    if (!job) return;
+    const preventTextareaEscapeClose = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && document.activeElement?.tagName === "TEXTAREA") {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    };
+    window.addEventListener("keydown", preventTextareaEscapeClose, true);
+    return () => window.removeEventListener("keydown", preventTextareaEscapeClose, true);
+  }, [job]);
+
   if (!job || typeof document === "undefined") return null;
 
   const t = statusTheme[job.status];
@@ -232,6 +249,81 @@ export default function JobDetailDrawer({
             </section>
 
             {job.remarks && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h3 className="text-sm font-bold text-amber-900">Catatan</h3><p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-amber-900/90">{job.remarks}</p></section>}
+
+            <section>
+              <h3 className="text-sm font-bold text-slate-900">
+                Catatan meeting <span className="font-medium text-slate-500">· {(job.notes ?? []).length}</span>
+              </h3>
+              <form
+                className="mt-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  if (!draft.trim() || isPending) return;
+                  setNoteError(null);
+                  startNoteTransition(async () => {
+                    const result = await addJobNote(job.id, draft);
+                    if (result.ok) setDraft("");
+                    else setNoteError(result.error ?? "Gagal menambahkan catatan meeting.");
+                  });
+                }}
+              >
+                <textarea
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                      event.preventDefault();
+                      if (!draft.trim() || isPending) return;
+                      setNoteError(null);
+                      startNoteTransition(async () => {
+                        const result = await addJobNote(job.id, draft);
+                        if (result.ok) setDraft("");
+                        else setNoteError(result.error ?? "Gagal menambahkan catatan meeting.");
+                      });
+                    }
+                  }}
+                  placeholder="Tulis hasil meeting, keputusan, atau tindak lanjut..."
+                  rows={3}
+                  maxLength={2000}
+                  className="w-full resize-y rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/15"
+                />
+                {noteError && <p className="mt-2 text-sm text-red-600">{noteError}</p>}
+                <div className="mt-2 flex justify-end">
+                  <button type="submit" disabled={isPending || !draft.trim()} className="h-9 rounded-lg bg-brand px-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+                    {isPending ? "Menyimpan..." : "Simpan catatan"}
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-4 space-y-3">
+                {(job.notes ?? []).length === 0 && <p className="text-sm text-slate-500">Belum ada catatan meeting.</p>}
+                {(job.notes ?? []).map((note) => (
+                  <article key={note.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <time className="text-xs text-slate-500" dateTime={note.createdAt}>
+                        {new Date(note.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}
+                      </time>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          if (!window.confirm("Hapus catatan ini?")) return;
+                          setNoteError(null);
+                          startNoteTransition(async () => {
+                            const result = await deleteJobNote(note.id);
+                            if (!result.ok) setNoteError(result.error ?? "Gagal menghapus catatan meeting.");
+                          });
+                        }}
+                        className="text-xs font-semibold text-red-600 transition hover:text-red-700 disabled:opacity-60"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{note.content}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
 
             {steps.length > 0 && (
               <section>

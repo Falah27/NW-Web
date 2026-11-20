@@ -2,10 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createJob, deleteJob, updateJob, type JobInput } from "@/lib/jobs-repo";
+import { addNote, deleteNote } from "@/lib/notes-repo";
 import { SOT_ERROR, isValidSotNo } from "@/lib/sot";
 import { toPublicError } from "@/lib/errors";
 
 export type FormState = { ok: boolean; error?: string };
+type NoteResult = { ok: true } | { ok: false; error: string };
+const NOTE_MAX_LEN = 2000;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -86,4 +89,28 @@ export async function deleteJobAction(id: string): Promise<FormState> {
   }
   revalidatePath("/", "layout");
   return { ok: true };
+}
+export async function addJobNote(jobId: string, content: string): Promise<NoteResult> {
+  const text = String(content ?? "").trim();
+  if (!jobId) return { ok: false, error: "Job tidak valid." };
+  if (!text) return { ok: false, error: "Catatan masih kosong." };
+  if (text.length > NOTE_MAX_LEN) return { ok: false, error: `Maksimal ${NOTE_MAX_LEN} karakter.` };
+  if (!addNote(jobId, text)) return { ok: false, error: "Job tidak ditemukan." };
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+export async function deleteJobNote(noteId: number): Promise<NoteResult> {
+  if (!Number.isInteger(noteId)) return { ok: false, error: "Catatan tidak valid." };
+  deleteNote(noteId);
+  revalidatePath("/jobs");
+  return { ok: true };
+}
+
+export async function addJobNoteAction(jobId: string, content: string): Promise<FormState> {
+  return addJobNote(jobId, content);
+}
+
+export async function deleteJobNoteAction(noteId: number): Promise<FormState> {
+  return deleteJobNote(noteId);
 }

@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import type { Job, Member } from "./types";
+import { getNotesMap } from "./notes-repo";
 import { randomUUID } from "node:crypto";
 import { isValidSotNo } from "./sot";
 
@@ -36,6 +37,7 @@ function buildSotUrl(sotNo: string | null): string | undefined {
 }
 
 export function getJobs(): Job[] {
+  const notesMap = getNotesMap();
   const rows = getDb()
     .prepare(
       `SELECT j.id, mg.name AS model, m.name AS module, s.name AS stage,
@@ -66,6 +68,7 @@ export function getJobs(): Job[] {
     startDate: r.start_date,
     endDate: r.end_date,
     archived: r.is_archived === 1,
+    notes: notesMap.get(r.id) ?? [],
   }));
 }
 

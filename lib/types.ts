@@ -1,5 +1,11 @@
 export type JobStatus = "Closed" | "Running" | "Open" | "Over" | "-";
 
+export interface JobNote {
+  id: number;
+  content: string;
+  createdAt: string;
+}
+
 export interface Job {
   id: string;
   model: string;
@@ -16,6 +22,7 @@ export interface Job {
   startDate: string | null; // format YYYY-MM-DD
   endDate: string | null;
   archived: boolean; // baris yang di-hide di Excel
+  notes?: JobNote[];
 }
 
 export type EventKind = "meeting" | "event" | "holiday";

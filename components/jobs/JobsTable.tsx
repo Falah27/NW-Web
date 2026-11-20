@@ -76,7 +76,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
   const [pic, setPic] = useState(() => searchParams.get("pic") ?? ALL);
   const [status, setStatus] = useState(() => searchParams.get("status") ?? ALL);
   const [showClosed, setShowClosed] = useState(() => searchParams.get("showClosed") === "1");
-  const [selected, setSelected] = useState<(Job & { status: JobStatus }) | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [form, setForm] = useState<{ job: Job | null } | null>(null);
   const [, startDelete] = useTransition();
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -105,6 +105,11 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
     [jobs, today]
   );
 
+  const selected = useMemo(
+    () => withStatus.find((job) => job.id === selectedId) ?? null,
+    [selectedId, withStatus]
+  );
+
   const uniq = (key: "model" | "module" | "stage" | "assignee") =>
     Array.from(new Set(jobs.map((j) => j[key]))).sort();
 
@@ -112,7 +117,7 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
     setDeleteError(null);
     startDelete(async () => {
       const result = await deleteJobAction(job.id);
-      if (result.ok) setSelected(null);
+      if (result.ok) setSelectedId(null);
       else setDeleteError(result.error ?? "Terjadi kesalahan tak terduga.");
     });
   }
@@ -276,8 +281,8 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
                 key={modelName}
                 modelName={modelName}
                 rows={rows}
-                selectedId={selected?.id ?? null}
-                onSelect={setSelected}
+                selectedId={selectedId}
+                onSelect={(job) => setSelectedId(job.id)}
               />
             ))}
           </tbody>
@@ -290,16 +295,17 @@ export default function JobsTable({ jobs, members, today }: { jobs: Job[]; membe
 
       <div className="grid gap-3 md:hidden">
         {filtered.map((job) => (
-          <MobileJobCard key={job.id} job={job} selectedId={selected?.id ?? null} onSelect={setSelected} />
+          <MobileJobCard key={job.id} job={job} selectedId={selectedId} onSelect={(item) => setSelectedId(item.id)} />
         ))}
         {filtered.length === 0 && <div className="card"><EmptyState title={jobs.length === 0 ? "Belum ada job" : "Tidak ada job yang cocok"} description={jobs.length === 0 ? "Impor workbook Excel untuk mulai mengisi daftar job." : "Coba ubah kata kunci atau reset filter yang aktif."} action={jobs.length === 0 ? { label: "Impor Excel", onClick: requestImport } : { label: "Reset filter", onClick: clearFilters }} /></div>}
       </div>
       <JobDetailDrawer
+        key={selected?.id ?? "closed"}
         job={selected}
         today={today}
-        onClose={() => setSelected(null)}
+        onClose={() => setSelectedId(null)}
         onEdit={(j) => {
-          setSelected(null);
+          setSelectedId(null);
           setForm({ job: j });
         }}
         onDelete={handleDelete}
